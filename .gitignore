@@ -1,0 +1,5 @@
+.env
+.requirements.txt
+cache.json
+
+**/__pycache__

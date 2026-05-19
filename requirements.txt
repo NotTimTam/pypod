@@ -1,0 +1,5 @@
+python-dotenv
+pygame
+mutagen
+pillow
+python-vlc
