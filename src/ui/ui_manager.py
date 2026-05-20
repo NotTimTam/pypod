@@ -146,9 +146,17 @@ class UIManager:
 
         # Set background from song metadata or album
         album = next((a for a in self.albums if a.name == song.album and a.artist == song.artist), None)
+        image_bytes = None
         if album:
             image_bytes = get_folder_image(album.path)
-            self.renderer.set_background_image(image_bytes)
+
+        # Fallback to artist folder image if no album image available
+        if not image_bytes:
+            artist = next((a for a in self.artists if a.name == song.artist), None)
+            if artist:
+                image_bytes = get_folder_image(artist.path)
+
+        self.renderer.set_background_image(image_bytes)
 
     def update_now_playing(self, song: Song, current_pos: int, total_songs: int, is_playing: bool, shuffle_enabled: bool) -> None:
         """Update now playing view (when skipping songs, etc)."""
@@ -161,6 +169,6 @@ class UIManager:
             return self.songs_view.get_selected_item()
         return None
 
-    def draw_now_playing_button(self, song: Song) -> None:
-        """Draw now playing button when audio is playing."""
-        self.renderer.draw_now_playing_button(song.title or song.filename, song.artist)
+    def draw_now_playing(self, song: Song) -> None:
+        """Draw now playing when audio is playing."""
+        self.renderer.draw_now_playing(song.title or song.filename, song.artist)

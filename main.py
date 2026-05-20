@@ -174,7 +174,7 @@ while running:
     if now_playing and ui_manager.current_view != ui_manager.now_playing:
         song = queue_manager.get_current_song()
         if song:
-            ui_manager.draw_now_playing_button(song)
+            ui_manager.draw_now_playing(song)
 
     pygame.display.flip()
 

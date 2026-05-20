@@ -7,10 +7,15 @@ from ..utils.image_handler import load_image_from_bytes, stretch_image_to_screen
 class Renderer:
     def __init__(self, screen: pygame.Surface):
         self.screen = screen
-        self.font_large = pygame.font.Font(None, 28)
-        self.font_normal = pygame.font.Font(None, 20)
-        self.font_small = pygame.font.Font(None, 16)
+        self.font_large = pygame.font.SysFont('Segoe UI Symbol', 28)
+        self.font_normal = pygame.font.SysFont('Segoe UI Symbol', 20)
+        self.font_small = pygame.font.SysFont('Segoe UI Symbol', 16)
         self.bg_image: Optional[pygame.Surface] = None
+
+        self.marquee_text: str = ""
+        self.marquee_text_width: int = 0
+        self.marquee_start_ticks: int = pygame.time.get_ticks()
+        self.marquee_speed: int = 20  # pixels per second
 
     def set_background_image(self, image_bytes: Optional[bytes]) -> None:
         """Set background image from bytes."""
@@ -64,16 +69,30 @@ class Renderer:
 
         return len(visible_items) * item_height
 
-    def draw_now_playing_button(self, song_name: str, artist_name: str) -> None:
-        """Draw now playing button at top right."""
-        text = f"▶ {song_name} — {artist_name}"
+    def draw_now_playing(self, song_name: str, artist_name: str) -> None:
+        """Draw now playing with marquee text."""
+        text = f"► {song_name} — {artist_name}"
+        text_width, text_height = self.font_small.size(text)
+        available_width = SCREEN_WIDTH - 10
+
+        if text != self.marquee_text or text_width != self.marquee_text_width:
+            self.marquee_text = text
+            self.marquee_text_width = text_width
+            self.marquee_start_ticks = pygame.time.get_ticks()
+
+        x = 5
+        if text_width > available_width:
+            scroll_range = text_width - available_width
+            elapsed = (pygame.time.get_ticks() - self.marquee_start_ticks) / 1000.0
+            period = 2 * scroll_range / self.marquee_speed if self.marquee_speed > 0 else 0.0
+            if period > 0:
+                position = (elapsed * self.marquee_speed) % (2 * scroll_range)
+                if position > scroll_range:
+                    position = 2 * scroll_range - position
+                x = 5 - int(position)
+
         surf = self.font_small.render(text, True, COLORS["yellow"])
-        # Draw at top right, truncate if needed
-        max_width = SCREEN_WIDTH - 10
-        if surf.get_width() > max_width:
-            text = "▶ NOW PLAYING"
-            surf = self.font_small.render(text, True, COLORS["yellow"])
-        self.screen.blit(surf, (SCREEN_WIDTH - surf.get_width() - 5, 5))
+        self.screen.blit(surf, (x, SCREEN_HEIGHT - text_height - 5))
 
     def draw_now_playing_screen(
         self,
@@ -97,22 +116,18 @@ class Renderer:
         album_surf = self.font_normal.render(f"{album_name}", True, COLORS["gray"])
         self.screen.blit(album_surf, (5, 80))
 
-        # Queue position
-        queue_surf = self.font_small.render(f"{current + 1}/{total}", True, COLORS["gray"])
-        self.screen.blit(queue_surf, (5, 110))
-
         # Status
-        status = "▶ Playing" if is_playing else "⏸ Paused"
+        status = "►Playing" if is_playing else "⏸Paused"
         status_surf = self.font_normal.render(status, True, COLORS["yellow"])
         self.screen.blit(status_surf, (5, 140))
 
         # Shuffle
-        shuffle_status = "🔀 Shuffle ON" if shuffle_enabled else "🔀 Shuffle OFF"
+        shuffle_status = "🔀Shuffle ON" if shuffle_enabled else "🔀Shuffle OFF"
         shuffle_surf = self.font_small.render(shuffle_status, True, COLORS["gray"])
         self.screen.blit(shuffle_surf, (5, 160))
 
         # Controls hint
-        hint_surf = self.font_small.render("↑ Prev ↓ Next ► Play ← Back", True, COLORS["gray"])
+        hint_surf = self.font_small.render("▲Prev  ▼Next  ▶Play  ◀Back", True, COLORS["gray"])
         self.screen.blit(hint_surf, (5, 210))
 
     def draw_centered_text(self, text: str, y: int, color: Tuple[int, int, int] = COLORS["white"]) -> None:
