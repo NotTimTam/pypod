@@ -1,6 +1,6 @@
 python-dotenv
-pygame
 mutagen
 pillow
 python-vlc
 st7789
+RPi.GPIO
