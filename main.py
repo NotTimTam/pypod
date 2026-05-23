@@ -58,5 +58,5 @@ t_start = time.time()
 while True:
     x = disp.width / 2
     draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
-    draw.text((int(text_x - x), text_y), input_handler.LAST_KEY or "_", fill=(255, 255, 255))
+    draw.text((int(text_x - x), text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
     disp.display(img)
