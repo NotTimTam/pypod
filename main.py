@@ -1,6 +1,8 @@
+#!/usr/bin/env python3
+
 from dotenv import load_dotenv
 import os
-import pygame
+import sys
 import time
 
 # Load environment
@@ -10,174 +12,97 @@ LIBRARY = os.getenv("LIBRARY")
 if not LIBRARY:
     raise ValueError("No LIBRARY env variable defined")
 
-# Import app components
-from src.cache.cache_manager import CacheManager
-from src.player.music_player import MusicPlayer
-from src.player.queue_manager import QueueManager
-from src.ui.renderer import Renderer
-from src.ui.ui_manager import UIManager
-from src.utils.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, HOLD_TIME_MS
+from PIL import Image, ImageDraw, ImageFont
 
-# Initialize pygame
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("PIPOD Music Player")
-clock = pygame.time.Clock()
+import st7789
 
-# Initialize cache
-cache_manager = CacheManager(LIBRARY)
-songs, albums, artists = cache_manager.load_or_build()
-print(f"DEBUG: Loaded {len(songs)} songs, {len(albums)} albums, {len(artists)} artists")
+MESSAGE = "Hello World! How are you today?"
 
-# Initialize players
-music_player = MusicPlayer()
-print(f"DEBUG: Music player initialized, VLC available: {music_player.is_vlc_available()}")
+print(
+    f"""
+scrolling-test.py - Display scrolling text.
 
-queue_manager = QueueManager()
-print("DEBUG: Queue manager initialized")
+If you're using Breakout Garden, plug the 1.3" LCD (SPI)
+breakout into the front slot.
 
-# Initialize UI
-renderer = Renderer(screen)
-print("DEBUG: Renderer initialized")
+Usage: {sys.argv[0]} "<message>" <display_type>
 
-ui_manager = UIManager(renderer, songs, albums, artists)
-print("DEBUG: UI manager initialized")
+Where <display_type> is one of:
 
-# State
-running = True
-now_playing = False
-right_arrow_held = False
-right_arrow_held_time = 0
+  * square - 240x240 1.3" Square LCD
+  * round  - 240x240 1.3" Round LCD (applies an offset)
+  * rect   - 240x135 1.14" Rectangular LCD (applies an offset)
+  * dhmini - 320x240 2.0" Display HAT Mini
+"""
+)
+
+try:
+    MESSAGE = sys.argv[1]
+except IndexError:
+    pass
+
+try:
+    display_type = sys.argv[2]
+except IndexError:
+    display_type = "square"
 
 
-def handle_player_action(action):
-    """Handle music player actions."""
-    global now_playing
+# Create ST7789 LCD display class.
 
-    if action == "prev":
-        song = queue_manager.prev()
-        if song:
-            music_player.previous()
-            pos, total = queue_manager.get_queue_position()
-            ui_manager.update_now_playing(song, pos, total, music_player.is_playing, queue_manager.shuffle_enabled)
+if display_type in ("square", "rect", "round"):
+    disp = st7789.ST7789(
+        height=135 if display_type == "rect" else 240,
+        rotation=0 if display_type == "rect" else 90,
+        port=0,
+        cs=st7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT
+        dc=9,
+        backlight=19,  # Breakout Garden: 18 for back slot, 19 for front slot.
+                       # NOTE: Change this to 13 for Pirate Audio boards
+        spi_speed_hz=80 * 1000 * 1000,
+        offset_left=0 if display_type == "square" else 40,
+        offset_top=53 if display_type == "rect" else 0,
+    )
 
-    elif action == "next":
-        song = queue_manager.next()
-        if song:
-            music_player.next()
-            pos, total = queue_manager.get_queue_position()
-            ui_manager.update_now_playing(song, pos, total, music_player.is_playing, queue_manager.shuffle_enabled)
-        else:
-            # Queue finished
-            if ui_manager.current_view != ui_manager.now_playing:
-                now_playing = False
+elif display_type == "dhmini":
+    disp = st7789.ST7789(
+        height=240,
+        width=320,
+        rotation=180,
+        port=0,
+        cs=1,
+        dc=9,
+        backlight=13,
+        spi_speed_hz=60 * 1000 * 1000,
+        offset_left=0,
+        offset_top=0,
+    )
 
-    elif action == "toggle_pause":
-        music_player.toggle_pause()
-        song = queue_manager.get_current_song()
-        if song:
-            pos, total = queue_manager.get_queue_position()
-            ui_manager.update_now_playing(song, pos, total, music_player.is_playing, queue_manager.shuffle_enabled)
+else:
+    print("Invalid display type!")
+
+# Initialize display.
+disp.begin()
+
+WIDTH = disp.width
+HEIGHT = disp.height
 
 
-def queue_and_play_song():
-    """Queue and play selected song."""
-    global now_playing
-    # Get all songs for queuing
-    selected_song = ui_manager.get_selected_song_for_play()
-    if not selected_song:
-        return
+img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 
-    # Determine what to queue
-    if ui_manager.current_view == ui_manager.songs_view:
-        # Queue all songs from current view
-        queue_manager.queue_all_songs(ui_manager.songs_view.items_data)
-    else:
-        # Just this song
-        queue_manager.add_song(selected_song)
+draw = ImageDraw.Draw(img)
 
-    # Load playlist to music player
-    queue_files = [s.path for s in queue_manager.queue]
-    music_player.load_playlist(queue_files)
-    music_player.play()
-    now_playing = True
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
 
-    # Switch to now playing view
-    song = queue_manager.get_current_song()
-    if song:
-        pos, total = queue_manager.get_queue_position()
-        ui_manager.switch_to_now_playing(song, pos, total, music_player.is_playing, queue_manager.shuffle_enabled)
+size_x, size_y = draw.textsize(MESSAGE, font)
 
-# Main loop
-last_render_time = 0
-render_throttle = 1.0 / FPS  # Throttle renders to FPS
-frame_count = 0
+text_x = disp.width
+text_y = (disp.height - size_y) // 2
 
-while running:
-    frame_count += 1
-    dt = clock.tick(FPS) / 1000.0
+t_start = time.time()
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            print("DEBUG: QUIT event received")
-            running = False
-        elif event.type == pygame.KEYDOWN:
-            # Track right arrow hold for now playing button
-            if event.key == pygame.K_RIGHT:
-                right_arrow_held = True
-                right_arrow_held_time = time.time()
-
-            # Handle navigation and actions
-            if event.key == pygame.K_LEFT:
-                print("DEBUG: LEFT pressed")
-                ui_manager.handle_input(event.key)
-            elif event.key in (pygame.K_UP, pygame.K_DOWN):
-                print(f"DEBUG: {['UP', 'DOWN'][event.key == pygame.K_DOWN]} pressed, selection before: {ui_manager.current_view.selected_index}")
-                ui_manager.handle_input(event.key)
-                print(f"DEBUG: selection after: {ui_manager.current_view.selected_index}")
-            elif event.key == pygame.K_RIGHT:
-                if now_playing:
-                    # In now playing view, RIGHT = pause/play
-                    handle_player_action("toggle_pause")
-                # else: will handle on KEYUP based on hold duration
-
-        elif event.type == pygame.KEYUP:
-            if event.key == pygame.K_RIGHT:
-                right_arrow_held = False
-                held_duration = (time.time() - right_arrow_held_time) * 1000
-                print(f"DEBUG: RIGHT released, held_duration: {held_duration}ms, now_playing: {now_playing}")
-
-                if held_duration < HOLD_TIME_MS and not now_playing:
-                    print("DEBUG: Short press in non-playing mode - calling handle_input")
-                    # Short press: select/enter on current view
-                    result = ui_manager.handle_input(pygame.K_RIGHT)
-                    print(f"DEBUG: handle_input returned: {result}, current_view: {ui_manager.current_view.__class__.__name__}")
-                    # If in songs view, play the selected song
-                    if ui_manager.current_view == ui_manager.songs_view:
-                        selected = ui_manager.get_selected_song_for_play()
-                        if selected:
-                            queue_and_play_song()
-                elif held_duration >= HOLD_TIME_MS and now_playing:
-                    print("DEBUG: Long press in playing mode - jumping to now playing")
-                    # Long press: jump to now playing if audio is playing
-                    song = queue_manager.get_current_song()
-                    if song:
-                        pos, total = queue_manager.get_queue_position()
-                        ui_manager.switch_to_now_playing(song, pos, total, music_player.is_playing, queue_manager.shuffle_enabled)
-                else:
-                    print(f"DEBUG: No action - held_duration<HOLD_TIME_MS={held_duration < HOLD_TIME_MS}, not now_playing={not now_playing}")
-
-    # Render UI
-    ui_manager.render()
-
-    # Draw now playing button if audio is playing and not in now playing view
-    if now_playing and ui_manager.current_view != ui_manager.now_playing:
-        song = queue_manager.get_current_song()
-        if song:
-            ui_manager.draw_now_playing(song)
-
-    pygame.display.flip()
-
-# Cleanup
-pygame.quit()
-# music_player.stop()
+while True:
+    x = (time.time() - t_start) * 100
+    x %= size_x + disp.width
+    draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
+    draw.text((int(text_x - x), text_y), MESSAGE, font=font, fill=(255, 255, 255))
+    disp.display(img)
