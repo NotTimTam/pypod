@@ -9,7 +9,6 @@ import st7789
 
 from PIL import Image, ImageDraw, ImageFont
 
-from src.utils.constants import SCREEN_HEIGHT
 from src.utils.input import input_handler
 
 #########################################
@@ -23,7 +22,7 @@ if not LIBRARY:
 
 # Create ST7789 LCD display class.
 disp = st7789.ST7789(
-    height= SCREEN_HEIGHT,
+    height= 240,
     rotation= 0, # 90
     port=0,
     cs=st7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT
@@ -33,7 +32,6 @@ disp = st7789.ST7789(
     offset_left=0,
     offset_top=0,
 )
-
 
 # Initialize display.
 disp.begin()
@@ -46,17 +44,16 @@ img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 
 # font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
-# font = ImageFont.truetype("arial.ttf")
 
 size_x, size_y = draw.textsize("A")
 
-text_x = disp.width
-text_y = (disp.height - size_y) // 2
+text_x = int(disp.width - size_x)
+text_y = int(disp.height - size_y)
 
 t_start = time.time()
 
 while True:
     x = disp.width / 2
-    draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
-    draw.text((int(text_x - x), text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
+    draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
+    draw.text((text_x, text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
     disp.display(img)
