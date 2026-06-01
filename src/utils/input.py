@@ -49,12 +49,14 @@ class InputHandler:
     def _button_pressed(self, pin):
         """Called when button is pressed (FALLING edge)"""
         label = self.PIN_TO_LABEL[pin]
+        print(label, " down")
         self.LAST_BUTTON = label
         setattr(self.state, label, True)
 
     def _button_released(self, pin):
         """Called when button is released (RISING edge)"""
         label = self.PIN_TO_LABEL[pin]
+        print(label, " up")
         setattr(self.state, label, False)
 
     def _wait_for_events(self):
