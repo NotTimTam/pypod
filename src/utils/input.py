@@ -35,7 +35,13 @@ class InputHandler:
 
         # Attach both falling (press) and rising (release) events
         for pin in self.BUTTONS:
-            GPIO.add_event_detect(pin, GPIO.BOTH, callback=self._button_event, bouncetime=60)
+            try:
+                GPIO.remove_event_detect(pin)
+                GPIO.add_event_detect(pin, GPIO.BOTH,
+                                    callback=self._button_event, bouncetime=60)
+                print(f"Pin {pin} OK")
+            except RuntimeError as e:
+                print(f"Pin {pin} FAILED: {e}")
 
         # Keep the original signal.pause() behavior in a daemon thread
         self._running = True
