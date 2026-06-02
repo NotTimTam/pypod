@@ -38,9 +38,9 @@ def get_battery_status() -> dict:
 
     _voltage_history.append(float(parse_value(voltage)))
 
-    battery_pct = float(parse_value(pct)),
-    is_plugged  = parse_value(plugged).lower() == "true",
-    voltage     = float(parse_value(voltage)),
+    battery_pct = float(parse_value(pct))
+    is_plugged  = parse_value(plugged).lower() == "true"
+    voltage     = float(parse_value(voltage))
 
     return {
         "battery_pct": battery_pct,
