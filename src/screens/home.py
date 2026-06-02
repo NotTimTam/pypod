@@ -1,3 +1,5 @@
+from functools import partial
+
 from src.utils.screen import Screen
 from src.utils.menu import Menu
 
@@ -17,23 +19,18 @@ class HomeScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Battery", self._on_battery)
-        self.menu.add_item("Settings", self._on_settings)
-        self.menu.add_item("About", self._on_about)
+        self.menu.add_item("Music >", partial(self._open_menu, "music"))
+        self.menu.add_item("Extras >", partial(self._open_menu, "extras"))
+        self.menu.add_item("Settings >", partial(self._open_menu, "settings"))
+        self.menu.add_item("Shuffle Songs", partial(self._open_menu, "shuffle songs"))
 
-    def _on_battery(self):
-        print("Battery screen selected")
-
-    def _on_settings(self):
-        print("Settings screen selected")
-
-    def _on_about(self):
-        print("About screen selected")
+    def _open_menu(self, menu):
+        print(menu)
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        
+
     def render(self, img, draw, font, width, height):
         """Render the home screen with menu centered."""
         # Calculate center position for menu
