@@ -2,7 +2,7 @@ from PIL import Image, ImageOps
 from pathlib import Path
 from src.utils.constants import SCREEN_SIZE
 
-ICON_SIZE = 12
+ICON_SIZE = 32
 
 class ControlIcons:
     """Displays optional control icons at four fixed screen positions."""
