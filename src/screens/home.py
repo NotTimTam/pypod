@@ -13,8 +13,8 @@ class HomeScreen(Screen):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
-            padding_left=0,
-            padding_right=0
+            padding_left=32,
+            padding_right=32
         )
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"PYPOD v{__version__}")
