@@ -67,7 +67,7 @@ def _battery_updater():
             with _cache_lock:
                 battery_cache = new_data
 
-        except Exception:
+        except Exception as e:
             # never crash the thread
             pass
 

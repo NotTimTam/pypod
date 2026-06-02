@@ -9,10 +9,12 @@ import st7789
 import signal
 import traceback
 
+
+
 from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.input import input_handler
-from src.utils.device import get_battery_status
+from src.utils.device import get_battery_status, start_device_thread
 
 #########################################
 
@@ -22,6 +24,10 @@ LIBRARY = os.getenv("LIBRARY")
 
 if not LIBRARY:
     raise ValueError("No LIBRARY env variable defined")
+
+
+# Begin polling for battery data
+start_device_thread()
 
 # Create ST7789 LCD display class.
 disp = st7789.ST7789(
