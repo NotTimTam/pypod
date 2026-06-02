@@ -2,7 +2,7 @@ from PIL import Image, ImageOps
 from pathlib import Path
 from src.utils.constants import SCREEN_SIZE
 
-ICON_SIZE = 8
+ICON_SIZE = 12
 
 class ControlIcons:
     """Displays optional control icons at four fixed screen positions."""
@@ -27,8 +27,15 @@ class ControlIcons:
 
         path = Path(__file__).parent.parent / "assets" / "images" / filename
         try:
-            img = Image.open(path).resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-            img = ImageOps.invert(img.convert("RGB")).convert("RGBA")
+            img = Image.open(path).convert("RGBA").resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
+            # Invert RGB channels while preserving alpha
+            r, g, b, a = img.split()
+            img = Image.merge("RGBA", (
+                ImageOps.invert(r),
+                ImageOps.invert(g),
+                ImageOps.invert(b),
+                a
+            ))
             self._image_cache[filename] = img
             return img
         except Exception as e:
