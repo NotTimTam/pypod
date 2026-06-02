@@ -58,7 +58,7 @@ signal.signal(signal.SIGINT, handle_signal)
 img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 
-font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 8)
 
 bbox = draw.textbbox((0, 0), "A", font=font)
 size_y = bbox[3] - bbox[1]
