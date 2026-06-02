@@ -18,22 +18,22 @@ class HomeScreen(Screen):
             padding_right=32
         )
         self._request_screen = request_screen
-        
+
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"PYPOD v{__version__}")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
             "y": "chevron-down.png",
-            "a": "chevron-right.png"
+            "a": "chevron-right.png",
         })
         self._setup_menu()
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Music", partial(self._request_screen, "music", {}))
-        self.menu.add_item("Extras", partial(self._request_screen, "extras", {}))
-        self.menu.add_item("Settings", partial(self._request_screen, "settings", {}))
+        self.menu.add_item("Music >", partial(self._request_screen, "music", {}))
+        self.menu.add_item("Extras >", partial(self._request_screen, "extras", {}))
+        self.menu.add_item("Settings >", partial(self._request_screen, "settings", {}))
         # self.menu.add_item("Shuffle Songs", partial(self._request_screen, "shuffle_songs"))
 
     def handle_input(self):

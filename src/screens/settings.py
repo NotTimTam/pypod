@@ -5,8 +5,8 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
-class MusicScreen(Screen):
-    """Music screen with navigation menu."""
+class SettingsScreen(Screen):
+    """Settings screen with navigation menu."""
 
     def __init__(self, state=None, request_screen=None):
         super().__init__(
@@ -18,7 +18,7 @@ class MusicScreen(Screen):
         self._request_screen = request_screen
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"MUSIC")
+        self.header = Header(title=f"SETTINGS")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -33,18 +33,18 @@ class MusicScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Playlists >", self.nullish)
-        self.menu.add_item("Artists >", self.nullish)
-        self.menu.add_item("Albums >", self.nullish)
-        self.menu.add_item("Songs >", self.nullish)
-        self.menu.add_item("Podcasts >", self.nullish)
-        self.menu.add_item("Genres >", self.nullish)
+        self.menu.add_item("About >", self.nullish)
+        self.menu.add_item("Main Menu >", self.nullish)
+        self.menu.add_item("Shuffle", self.nullish)
+        self.menu.add_item("Repeat", self.nullish)
+        self.menu.add_item("Backlight Timer >", self.nullish)
         self.menu.add_item("Audiobooks >", self.nullish)
+        self.menu.add_item("Date and Time >", self.nullish)
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        
+
         if input_handler.button_state("b"):
             self._request_screen("home")
 

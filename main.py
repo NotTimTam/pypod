@@ -75,6 +75,9 @@ def load_screen(name, state=None):
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
         return _MusicScreen(state=state, request_screen=request_screen)
+    elif name == "settings":
+        from src.screens.settings import SettingsScreen as _SettingsScreen
+        return _SettingsScreen(state=state, request_screen=request_screen)
     else:
         raise ValueError(f"Unknown screen: {name}")
 
