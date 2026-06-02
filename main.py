@@ -11,6 +11,7 @@ import signal
 from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.input import input_handler
+from src.utils.device import get_battery_status
 
 #########################################
 
@@ -62,10 +63,15 @@ bbox = draw.textbbox((0, 0), "A")
 size_x = bbox[2] - bbox[0]
 size_y = bbox[3] - bbox[1]
 
-text_x = int(disp.width - size_x - 20)
-text_y = int(disp.height - size_y - 20)
+text_x = int(disp.width - size_x)
+text_y = int(disp.height - size_y)
 
 t_start = time.time()
+
+status = get_battery_status()
+print(f"Battery: {status['battery_pct']:.1f}%")
+print(f"Charging (plugged): {status['is_plugged']}")
+print(f"Voltage: {status['voltage']:.2f}V")
 
 try:
     while True:
