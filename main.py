@@ -58,14 +58,23 @@ def handle_signal(sig, frame):
 signal.signal(signal.SIGTERM, handle_signal)
 signal.signal(signal.SIGINT, handle_signal)
 
+requested_screen="home"
+requested_state = None
+
+def request_screen(name, state=None):
+    global requested_screen 
+    global requested_state
+    requested_screen = name
+    requested_state = state
+
 def load_screen(name, state=None):
     """Factory function to load screens by name."""
     if name == "home":
         from src.screens.home import HomeScreen as _HomeScreen
-        return _HomeScreen(state=state, load_screen=load_screen)
+        return _HomeScreen(state=state, request_screen=request_screen)
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
-        return _MusicScreen(state=state, load_screen=load_screen)
+        return _MusicScreen(state=state, request_screen=request_screen)
     else:
         raise ValueError(f"Unknown screen: {name}")
 

@@ -10,7 +10,7 @@ from src.ui.control_icons import ControlIcons
 class HomeScreen(Screen):
     """Home screen with navigation menu."""
 
-    def __init__(self, state=None, load_screen=None):
+    def __init__(self, state=None, request_screen=None):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
@@ -26,14 +26,14 @@ class HomeScreen(Screen):
             "a": "chevron-right.png"
         })
         self._setup_menu()
-        self._load_screen = load_screen
+        self._request_screen = request_screen
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Music", partial(self._load_screen, "music", {}))
-        self.menu.add_item("Extras", partial(self._load_screen, "extras", {}))
-        self.menu.add_item("Settings", partial(self._load_screen, "settings", {}))
-        # self.menu.add_item("Shuffle Songs", partial(self._open_menu, "shuffle_songs"))
+        self.menu.add_item("Music", partial(self._request_screen, "music", {}))
+        self.menu.add_item("Extras", partial(self._request_screen, "extras", {}))
+        self.menu.add_item("Settings", partial(self._request_screen, "settings", {}))
+        # self.menu.add_item("Shuffle Songs", partial(self._request_screen, "shuffle_songs"))
 
     def handle_input(self):
         """Handle input."""
