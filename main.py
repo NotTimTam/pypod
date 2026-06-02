@@ -57,25 +57,22 @@ signal.signal(signal.SIGINT, handle_signal)
 img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 
-# font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
 
-bbox = draw.textbbox((0, 0), "A")
+bbox = draw.textbbox((0, 0), "A", font=font)
 size_y = bbox[3] - bbox[1]
 
 text_x = int(0)
-text_y = int(disp.height - size_y)
+text_y = int(disp.height - size_y - 2)
 
 t_start = time.time()
-
-
-
 
 try:
     while True:
         status = get_battery_status()
 
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
-        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V | {input_handler.LAST_BUTTON or "_"}", fill=(255, 255, 255))
+        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V | L: {input_handler.LAST_BUTTON or "_"}", fill=(255, 255, 255), font=font)
         disp.display(img)
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
