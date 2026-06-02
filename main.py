@@ -45,7 +45,9 @@ draw = ImageDraw.Draw(img)
 
 # font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
 
-size_x, size_y = draw.textsize("A")
+bbox = draw.textbbox((0, 0), "A")
+size_x = bbox[2] - bbox[0]
+size_y = bbox[3] - bbox[1]
 
 text_x = int(disp.width - size_x)
 text_y = int(disp.height - size_y)
