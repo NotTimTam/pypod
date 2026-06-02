@@ -7,6 +7,7 @@ import sys
 import time
 import st7789
 import signal
+import traceback
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -75,6 +76,6 @@ try:
         draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V | L: {input_handler.LAST_BUTTON or "_"}", fill=(255, 255, 255), font=font)
         disp.display(img)
 except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
 finally:
     cleanup()
