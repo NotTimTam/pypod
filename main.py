@@ -81,9 +81,8 @@ text_x = int(0)
 text_y = int(disp.height - size_y - 4)
 
 # Screen state management
-screen_state = {}
 current_screen_name = "home"
-current_screen = load_screen(current_screen_name, screen_state.get(current_screen_name, {}), load_screen)
+current_screen = load_screen(current_screen_name, {}, load_screen)
 
 try:
     while True:
