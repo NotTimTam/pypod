@@ -45,7 +45,7 @@ class ControlIcons:
 
     def _get_position(self, position_key):
         """Calculate pixel coordinates for a position key."""
-        quarter_height = SCREEN_SIZE // 5
+        quarter_height = SCREEN_SIZE // 4
 
         if position_key == "a":
             return (self.margin, quarter_height)
