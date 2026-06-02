@@ -43,5 +43,5 @@ def get_battery_status() -> dict:
     return {
         "battery_pct": sum(_pct_history) / len(_pct_history),
         "is_plugged":  parse_value(plugged).lower() == "true",
-        "voltage":     sum(_voltage_history) / len(_voltage_history),
+        "voltage":     (sum(_voltage_history) / len(_voltage_history)) if len(_voltage_history) > (_SMOOTHING_SAMPLES / 2) else float(parse_value(voltage)),
     }
