@@ -7,8 +7,8 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
-class HomeScreen(Screen):
-    """Home screen with navigation menu."""
+class MusicScreen(Screen):
+    """Music screen with navigation menu."""
 
     def __init__(self, state=None, load_screen=None):
         super().__init__(
@@ -30,8 +30,8 @@ class HomeScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Music", partial(self._load_screen, "music"))
-        self.menu.add_item("Extras", partial(self._load_screen, "extras"))
+        # self.menu.add_item("Music", partial(self._load_screen, "music"))
+        # self.menu.add_item("Extras", partial(self._load_screen, "extras"))
         self.menu.add_item("Settings", partial(self._load_screen, "settings"))
         # self.menu.add_item("Shuffle Songs", partial(self._open_menu, "shuffle_songs"))
 
@@ -40,7 +40,7 @@ class HomeScreen(Screen):
         self.menu.handle_input()
 
     def render(self, img, draw, font, width, height):
-        """Render the home screen with menu centered."""
+        """Render the screen with menu centered."""
         # Calculate center position for menu
         header_height = self.header.get_height(draw, font)
 

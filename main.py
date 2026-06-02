@@ -63,6 +63,9 @@ def load_screen(name, state=None):
     if name == "home":
         from src.screens.home import HomeScreen as _HomeScreen
         return _HomeScreen(state=state)
+    elif name == "music":
+        from src.screens.music import MusicScreen as _MusicScreen
+        return _MusicScreen(state=state)
     else:
         raise ValueError(f"Unknown screen: {name}")
 
@@ -80,7 +83,7 @@ text_y = int(disp.height - size_y - 4)
 # Screen state management
 screen_state = {}
 current_screen_name = "home"
-current_screen = load_screen(current_screen_name, screen_state.get(current_screen_name, {}))
+current_screen = load_screen(current_screen_name, screen_state.get(current_screen_name, {}), load_screen)
 
 try:
     while True:
