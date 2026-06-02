@@ -9,6 +9,7 @@ BATTERY_STATUS_UNAVAILABLE = {
     "voltage":     0.0,
 }
 
+
 _voltage_history = deque(maxlen=10)
 
 def get_pisugar_value(command: str) -> str | None:
@@ -19,7 +20,6 @@ def get_pisugar_value(command: str) -> str | None:
             s.sendall((command + "\n").encode())
             return s.recv(1024).decode().strip()
     except (FileNotFoundError, ConnectionRefusedError, OSError, TimeoutError):
-        print("DEBUG: Failed to collect pisugar battery stats")
         return None
 
 def parse_value(response: str) -> str:
