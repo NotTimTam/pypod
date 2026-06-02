@@ -24,7 +24,7 @@ if not LIBRARY:
 # Create ST7789 LCD display class.
 disp = st7789.ST7789(
     height= 240,
-    rotation= 0, # 90
+    rotation= 90,
     port=0,
     cs=st7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT
     dc=9,
