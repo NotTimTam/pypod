@@ -2,7 +2,7 @@ from PIL import Image, ImageOps
 from pathlib import Path
 from src.utils.constants import SCREEN_SIZE
 
-ICON_SIZE = 32
+ICON_SIZE = 24
 
 class ControlIcons:
     """Displays optional control icons at four fixed screen positions."""
@@ -45,7 +45,7 @@ class ControlIcons:
 
     def _get_position(self, position_key):
         """Calculate pixel coordinates for a position key."""
-        quarter_height = SCREEN_SIZE // 4
+        quarter_height = SCREEN_SIZE // 5
 
         if position_key == "a":
             return (self.margin, quarter_height)
