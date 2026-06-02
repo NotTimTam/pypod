@@ -5,7 +5,7 @@ from collections import deque
 
 PISUGAR_SOCK = "/tmp/pisugar-server.sock"
 
-UPDATE_INTERVAL = 20  # seconds (adjust 15–30 as needed)
+UPDATE_INTERVAL = 5  # seconds
 
 BATTERY_STATUS_UNAVAILABLE = {
     "battery_pct": -1.0,
