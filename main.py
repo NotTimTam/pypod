@@ -60,24 +60,22 @@ draw = ImageDraw.Draw(img)
 # font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
 
 bbox = draw.textbbox((0, 0), "A")
-size_x = bbox[2] - bbox[0]
 size_y = bbox[3] - bbox[1]
 
-text_x = int(disp.width - size_x)
+text_x = int(0)
 text_y = int(disp.height - size_y)
 
 t_start = time.time()
 
-status = get_battery_status()
-print(f"Battery: {status['battery_pct']:.1f}%")
-print(f"Charging (plugged): {status['is_plugged']}")
-print(f"Voltage: {status['voltage']:.2f}V")
+
+
 
 try:
     while True:
-        x = disp.width / 2
+        status = get_battery_status()
+
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
-        draw.text((text_x, text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
+        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V" and input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
         disp.display(img)
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
