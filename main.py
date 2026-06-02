@@ -64,7 +64,7 @@ bbox = draw.textbbox((0, 0), "A", font=font)
 size_y = bbox[3] - bbox[1]
 
 text_x = int(0)
-text_y = int(disp.height - size_y - 2)
+text_y = int(disp.height - size_y - 4)
 
 t_start = time.time()
 

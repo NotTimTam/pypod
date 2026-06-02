@@ -9,9 +9,7 @@ BATTERY_STATUS_UNAVAILABLE = {
     "voltage":     0.0,
 }
 
-_SMOOTHING_SAMPLES = 10
-_pct_history     = deque(maxlen=_SMOOTHING_SAMPLES)
-_voltage_history = deque(maxlen=_SMOOTHING_SAMPLES)
+_voltage_history = deque(maxlen=10)
 
 def get_pisugar_value(command: str) -> str | None:
     try:
@@ -21,6 +19,7 @@ def get_pisugar_value(command: str) -> str | None:
             s.sendall((command + "\n").encode())
             return s.recv(1024).decode().strip()
     except (FileNotFoundError, ConnectionRefusedError, OSError, TimeoutError):
+        print("DEBUG: Failed to collect pisugar battery stats")
         return None
 
 def parse_value(response: str) -> str:
@@ -37,11 +36,16 @@ def get_battery_status() -> dict:
     if None in (pct, plugged, voltage):
         return BATTERY_STATUS_UNAVAILABLE
 
-    _pct_history.append(float(parse_value(pct)))
     _voltage_history.append(float(parse_value(voltage)))
 
+    battery_pct = float(parse_value(pct)),
+    is_plugged  = parse_value(plugged).lower() == "true",
+    voltage     = float(parse_value(voltage)),
+
+    print(voltage, _voltage_history)
+
     return {
-        "battery_pct": sum(_pct_history) / len(_pct_history),
-        "is_plugged":  parse_value(plugged).lower() == "true",
-        "voltage":     (sum(_voltage_history) / len(_voltage_history)) if len(_voltage_history) > (_SMOOTHING_SAMPLES / 2) else float(parse_value(voltage)),
+        "battery_pct": battery_pct,
+        "is_plugged":  is_plugged,
+        "voltage":     sum(_voltage_history) / len(_voltage_history) or voltage,
     }
