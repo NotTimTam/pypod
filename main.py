@@ -13,7 +13,6 @@ from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.input import input_handler
 from src.utils.device import get_battery_status, start_device_thread
-from src.screens.home import HomeScreen
 
 #########################################
 
@@ -60,6 +59,14 @@ def handle_signal(sig, frame):
 signal.signal(signal.SIGTERM, handle_signal)
 signal.signal(signal.SIGINT, handle_signal)
 
+def load_screen(name, state=None):
+    """Factory function to load screens by name."""
+    if name == "home":
+        from src.screens.home import HomeScreen as _HomeScreen
+        return _HomeScreen(state=state)
+    else:
+        raise ValueError(f"Unknown screen: {name}")
+
 img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 
@@ -71,8 +78,10 @@ size_y = bbox[3] - bbox[1]
 text_x = int(0)
 text_y = int(disp.height - size_y - 4)
 
-# Initialize home screen
-current_screen = HomeScreen(WIDTH, HEIGHT)
+# Screen state management
+screen_state = {}
+current_screen_name = "home"
+current_screen = load_screen(current_screen_name, screen_state.get(current_screen_name, {}))
 
 try:
     while True:
@@ -88,7 +97,7 @@ try:
             input_handler.LAST_BUTTON = None
 
         # Render screen
-        current_screen.render(img, draw, font)
+        current_screen.render(img, draw, font, WIDTH, HEIGHT)
 
         # Render battery info in bottom bar (doesn't interfere with screen content)
         draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{"+" if status['is_plugged'] else ''} | {status['voltage']:.2f}V", fill=(255, 255, 255), font=font)
