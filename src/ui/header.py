@@ -11,11 +11,10 @@ class Header:
         return bbox[3] - bbox[1]
 
     def render(self, img, draw, font):
-
-        # Calculate item height
         bbox = draw.textbbox((0, 0), self.title, font=font)
         line_height = bbox[3] - bbox[1]
         padding = 4
         line_height += padding
 
         draw.text((int((SCREEN_SIZE / 2) - (bbox[2] / 2)), 0), self.title, fill=(255, 255, 255), font=font)
+        draw.line((0, line_height, SCREEN_SIZE, line_height), fill=(255, 255, 255), width=1)
