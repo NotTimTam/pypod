@@ -40,11 +40,10 @@ class InputHandler:
     def _pressed(self, label):
         self.LAST_BUTTON = label
         setattr(self.state, label, True)
-        self.event_queue.append(('pressed', label))
+        self.event_queue.append(label)
 
     def _released(self, label):
         setattr(self.state, label, False)
-        self.event_queue.append(('released', label))
 
     def button_state(self, button_label):
         """Return whether the named button is currently pressed.
@@ -78,14 +77,11 @@ class InputHandler:
     def handle_button(self, button, callback):
         """If button was pressed, call callback and consume the event."""
         button = button.upper()
-        while self.has_events():
-            event_type, btn = self.event_queue[0]
-            if event_type == 'pressed' and btn == button:
+        for i, btn in enumerate(self.event_queue):
+            if btn == button:
                 callback()
-                self.event_queue.pop(0)
+                self.event_queue.pop(i)
                 return True
-            else:
-                break
         return False
 
     def cleanup(self):
