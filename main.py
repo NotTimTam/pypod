@@ -95,8 +95,9 @@ try:
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
 
         # Render battery info in bottom bar (doesn't interfere with screen content)
-        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{"+" if status['is_plugged'] else ''} | {status['voltage']:.2f}V", fill=(255, 255, 255), font=font)
-
+        plug = "+" if status['is_plugged'] else ""
+        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{plug} | {status['voltage']:.2f}V", fill=(255, 255, 255), font=font)
+        
         disp.display(img)
 
 except Exception as e:
