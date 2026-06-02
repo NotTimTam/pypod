@@ -5,6 +5,7 @@ from src import __version__
 
 from src.ui.menu import Menu
 from src.ui.header import Header
+from src.ui.control_icons import ControlIcons
 
 class HomeScreen(Screen):
     """Home screen with navigation menu."""
@@ -19,6 +20,10 @@ class HomeScreen(Screen):
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"PYPOD v{__version__}")
         self.menu = Menu(state=menu_state)
+        self.controls = ControlIcons(icons={
+            "x": "chevron-up.png",
+            "y": "chevron-down.png"
+        })
         self._setup_menu()
 
     def _setup_menu(self):
@@ -52,6 +57,9 @@ class HomeScreen(Screen):
 
         # Render menu
         self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
+
+        # Render controls
+        self.controls.render(img, draw)
 
     def get_state(self):
         """Return screen state for persistence."""
