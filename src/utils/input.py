@@ -1,6 +1,7 @@
-import RPi.GPIO as GPIO
-import threading
-import signal
+import os
+os.environ["GPIOZERO_PIN_FACTORY"] = "lgpio"
+
+from gpiozero import Button
 import atexit
 
 class ButtonState:
@@ -17,61 +18,36 @@ class ButtonState:
     def __repr__(self):
         return f"Buttons(A={self.A}, B={self.B}, X={self.X}, Y={self.Y})"
 
-
 class InputHandler:
     def __init__(self):
-        # Pirate Audio button pins
         self.BUTTONS = [5, 6, 16, 24]
         self.LABELS = ['A', 'B', 'X', 'Y']
         self.PIN_TO_LABEL = dict(zip(self.BUTTONS, self.LABELS))
-
         self.LAST_BUTTON = '_'
         self.state = ButtonState()
 
-        # Setup GPIO
-        GPIO.cleanup()
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        # Attach both falling (press) and rising (release) events
-        for pin in self.BUTTONS:
-            try:
-                GPIO.remove_event_detect(pin)
-                GPIO.add_event_detect(pin, GPIO.BOTH,
-                                    callback=self._button_event, bouncetime=60)
-                print(f"Pin {pin} OK")
-            except RuntimeError as e:
-                print(f"Pin {pin} FAILED: {e}")
-
-        # Keep the original signal.pause() behavior in a daemon thread
-        self._running = True
-        thread = threading.Thread(target=self._wait_for_events, daemon=True)
-        thread.start()
+        self._buttons = {}
+        for pin, label in self.PIN_TO_LABEL.items():
+            b = Button(pin, pull_up=True, bounce_time=0.06)  # bounce_time in seconds
+            b.when_pressed  = lambda l=label: self._pressed(l)
+            b.when_released = lambda l=label: self._released(l)
+            self._buttons[pin] = b
+            print(f"Pin {pin} ({label}) OK")
 
         atexit.register(self.cleanup)
 
-    def _button_event(self, pin):
-        """Called on any edge — check current level to determine press vs release"""
-        label = self.PIN_TO_LABEL[pin]
-        if GPIO.input(pin) == GPIO.LOW:   # FALLING → pressed
-            print(label, "down")
-            self.LAST_BUTTON = label
-            setattr(self.state, label, True)
-        else:                              # RISING → released
-            print(label, "up")
-            setattr(self.state, label, False)
+    def _pressed(self, label):
+        print(label, "down")
+        self.LAST_BUTTON = label
+        setattr(self.state, label, True)
 
-    def _wait_for_events(self):
-        """Original approach - keeps the script alive"""
-        signal.pause()
+    def _released(self, label):
+        print(label, "up")
+        setattr(self.state, label, False)
 
     def cleanup(self):
-        """Clean up GPIO on exit"""
-        self._running = False
-        try:
-            GPIO.cleanup()
-        except:
-            pass
+        for b in self._buttons.values():
+            b.close()
 
 # Global instance (easy to import)
 input_handler = InputHandler()

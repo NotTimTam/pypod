@@ -3,4 +3,6 @@ mutagen
 pillow
 python-vlc
 st7789
-RPi.GPIO
+# RPi.GPIO
+lgpio
+gpiozero

@@ -44,7 +44,7 @@ def cleanup():
     """Clear display and turn off backlight."""
     blank = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
     disp.display(blank)
-    disp.set_backlight(0)  # turn off backlight if supported
+    disp.set_backlight(0)
 
 def handle_signal(sig, frame):
     cleanup()
@@ -62,8 +62,8 @@ bbox = draw.textbbox((0, 0), "A")
 size_x = bbox[2] - bbox[0]
 size_y = bbox[3] - bbox[1]
 
-text_x = int(disp.width - size_x)
-text_y = int(disp.height - size_y)
+text_x = int(disp.width - size_x - 20)
+text_y = int(disp.height - size_y - 20)
 
 t_start = time.time()
 
