@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import st7789
+import signal
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -39,8 +40,20 @@ disp.begin()
 WIDTH = disp.width
 HEIGHT = disp.height
 
-img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
+def cleanup():
+    """Clear display and turn off backlight."""
+    blank = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
+    disp.display(blank)
+    disp.set_backlight(0)  # turn off backlight if supported
 
+def handle_signal(sig, frame):
+    cleanup()
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_signal)
+signal.signal(signal.SIGINT, handle_signal)
+
+img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
 
 # font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
@@ -54,8 +67,13 @@ text_y = int(disp.height - size_y)
 
 t_start = time.time()
 
-while True:
-    x = disp.width / 2
-    draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
-    draw.text((text_x, text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
-    disp.display(img)
+try:
+    while True:
+        x = disp.width / 2
+        draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
+        draw.text((text_x, text_y), input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
+        disp.display(img)
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+finally:
+    cleanup()
