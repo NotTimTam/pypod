@@ -1,4 +1,5 @@
 import socket
+from collections import deque
 
 PISUGAR_SOCK = "/tmp/pisugar-server.sock"
 
@@ -7,6 +8,10 @@ BATTERY_STATUS_UNAVAILABLE = {
     "is_plugged":  False,
     "voltage":     0.0,
 }
+
+_SMOOTHING_SAMPLES = 10
+_pct_history     = deque(maxlen=_SMOOTHING_SAMPLES)
+_voltage_history = deque(maxlen=_SMOOTHING_SAMPLES)
 
 def get_pisugar_value(command: str) -> str | None:
     try:
@@ -24,7 +29,7 @@ def parse_value(response: str) -> str:
     return response
 
 def get_battery_status() -> dict:
-    """Returns battery percentage, charging status, and voltage."""
+    """Returns smoothed battery percentage, charging status, and voltage."""
     pct     = get_pisugar_value("get battery")
     plugged = get_pisugar_value("get battery_power_plugged")
     voltage = get_pisugar_value("get battery_v")
@@ -32,8 +37,11 @@ def get_battery_status() -> dict:
     if None in (pct, plugged, voltage):
         return BATTERY_STATUS_UNAVAILABLE
 
+    _pct_history.append(float(parse_value(pct)))
+    _voltage_history.append(float(parse_value(voltage)))
+
     return {
-        "battery_pct": float(parse_value(pct)),
+        "battery_pct": sum(_pct_history) / len(_pct_history),
         "is_plugged":  parse_value(plugged).lower() == "true",
-        "voltage":     float(parse_value(voltage)),
+        "voltage":     sum(_voltage_history) / len(_voltage_history),
     }

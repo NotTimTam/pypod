@@ -1,47 +1,53 @@
-import socket
-from collections import deque
+import os
+os.environ["GPIOZERO_PIN_FACTORY"] = "lgpio"
 
-PISUGAR_SOCK = "/tmp/pisugar-server.sock"
+from gpiozero import Button
+import atexit
 
-BATTERY_STATUS_UNAVAILABLE = {
-    "battery_pct": 0.0,
-    "is_plugged":  False,
-    "voltage":     0.0,
-}
+class ButtonState:
+    """Holds the current pressed state of each button"""
+    def __init__(self):
+        self.A = False
+        self.B = False
+        self.X = False
+        self.Y = False
 
-_SMOOTHING_SAMPLES = 10
-_pct_history     = deque(maxlen=_SMOOTHING_SAMPLES)
-_voltage_history = deque(maxlen=_SMOOTHING_SAMPLES)
+    def reset(self):
+        self.A = self.B = self.X = self.Y = False
 
-def get_pisugar_value(command: str) -> str | None:
-    try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-            s.settimeout(2)
-            s.connect(PISUGAR_SOCK)
-            s.sendall((command + "\n").encode())
-            return s.recv(1024).decode().strip()
-    except (FileNotFoundError, ConnectionRefusedError, OSError, TimeoutError):
-        return None
+    def __repr__(self):
+        return f"Buttons(A={self.A}, B={self.B}, X={self.X}, Y={self.Y})"
 
-def parse_value(response: str) -> str:
-    if ": " in response:
-        return response.split(": ", 1)[1]
-    return response
+class InputHandler:
+    def __init__(self):
+        self.BUTTONS = [5, 6, 16, 24]
+        self.LABELS = ['A', 'B', 'X', 'Y']
+        self.PIN_TO_LABEL = dict(zip(self.BUTTONS, self.LABELS))
+        self.LAST_BUTTON = '_'
+        self.state = ButtonState()
 
-def get_battery_status() -> dict:
-    """Returns smoothed battery percentage, charging status, and voltage."""
-    pct     = get_pisugar_value("get battery")
-    plugged = get_pisugar_value("get battery_power_plugged")
-    voltage = get_pisugar_value("get battery_v")
+        self._buttons = {}
+        for pin, label in self.PIN_TO_LABEL.items():
+            b = Button(pin, pull_up=True, bounce_time=0.06)  # bounce_time in seconds
+            b.when_pressed  = lambda l=label: self._pressed(l)
+            b.when_released = lambda l=label: self._released(l)
+            self._buttons[pin] = b
+            print(f"DEBUG: Pin {pin} ({label}) OK")
 
-    if None in (pct, plugged, voltage):
-        return BATTERY_STATUS_UNAVAILABLE
+        atexit.register(self.cleanup)
 
-    _pct_history.append(float(parse_value(pct)))
-    _voltage_history.append(float(parse_value(voltage)))
+    def _pressed(self, label):
+        print(label, "down")
+        self.LAST_BUTTON = label
+        setattr(self.state, label, True)
 
-    return {
-        "battery_pct": sum(_pct_history) / len(_pct_history),
-        "is_plugged":  parse_value(plugged).lower() == "true",
-        "voltage":     sum(_voltage_history) / len(_voltage_history),
-    }
+    def _released(self, label):
+        print(label, "up")
+        setattr(self.state, label, False)
+
+    def cleanup(self):
+        for b in self._buttons.values():
+            b.close()
+
+# Global instance (easy to import)
+input_handler = InputHandler()
