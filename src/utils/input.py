@@ -34,10 +34,7 @@ class InputHandler:
 
         # Attach both falling (press) and rising (release) events
         for pin in self.BUTTONS:
-            GPIO.add_event_detect(pin, GPIO.FALLING, 
-                                callback=self._button_pressed, bouncetime=60)
-            GPIO.add_event_detect(pin, GPIO.RISING, 
-                                callback=self._button_released, bouncetime=60)
+            GPIO.add_event_detect(pin, GPIO.BOTH, callback=self._button_event, bouncetime=60)
 
         # Keep the original signal.pause() behavior in a daemon thread
         self._running = True
@@ -46,18 +43,16 @@ class InputHandler:
 
         atexit.register(self.cleanup)
 
-    def _button_pressed(self, pin):
-        """Called when button is pressed (FALLING edge)"""
+    def _button_event(self, pin):
+        """Called on any edge — check current level to determine press vs release"""
         label = self.PIN_TO_LABEL[pin]
-        print(label, " down")
-        self.LAST_BUTTON = label
-        setattr(self.state, label, True)
-
-    def _button_released(self, pin):
-        """Called when button is released (RISING edge)"""
-        label = self.PIN_TO_LABEL[pin]
-        print(label, " up")
-        setattr(self.state, label, False)
+        if GPIO.input(pin) == GPIO.LOW:   # FALLING → pressed
+            print(label, "down")
+            self.LAST_BUTTON = label
+            setattr(self.state, label, True)
+        else:                              # RISING → released
+            print(label, "up")
+            setattr(self.state, label, False)
 
     def _wait_for_events(self):
         """Original approach - keeps the script alive"""
