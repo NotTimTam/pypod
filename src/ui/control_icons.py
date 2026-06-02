@@ -28,14 +28,15 @@ class ControlIcons:
         path = Path(__file__).parent.parent / "assets" / "images" / filename
         try:
             img = Image.open(path).convert("RGBA").resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
-            # Invert RGB channels while preserving alpha
-            r, g, b, a = img.split()
-            img = Image.merge("RGBA", (
-                ImageOps.invert(r),
-                ImageOps.invert(g),
-                ImageOps.invert(b),
-                a
-            ))
+            # Invert only non-transparent pixels
+            data = img.getdata()
+            inverted = []
+            for item in data:
+                if item[3] > 0:  # If not transparent
+                    inverted.append((255 - item[0], 255 - item[1], 255 - item[2], item[3]))
+                else:
+                    inverted.append(item)
+            img.putdata(inverted)
             self._image_cache[filename] = img
             return img
         except Exception as e:
@@ -63,4 +64,4 @@ class ControlIcons:
             if icon:
                 pos = self._get_position(position_key)
                 if pos:
-                    img.paste(icon, pos)
+                    img.paste(icon, pos, icon)
