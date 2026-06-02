@@ -17,6 +17,8 @@ class MusicScreen(Screen):
             padding_left=32,
             padding_right=32
         )
+        self._request_screen = request_screen
+
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"PYPOD v{__version__}")
         self.menu = Menu(state=menu_state)
@@ -26,7 +28,6 @@ class MusicScreen(Screen):
             "a": "chevron-right.png"
         })
         self._setup_menu()
-        self._request_screen = request_screen
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
