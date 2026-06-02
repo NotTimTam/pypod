@@ -75,7 +75,7 @@ try:
         status = get_battery_status()
 
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
-        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V" and input_handler.LAST_BUTTON or "_", fill=(255, 255, 255))
+        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}% {"CHARGING" if status['is_plugged'] else ''} | {status['voltage']:.2f}V | {input_handler.LAST_BUTTON or "_"}", fill=(255, 255, 255))
         disp.display(img)
 except Exception as e:
     print(f"Error: {e}", file=sys.stderr)
