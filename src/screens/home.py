@@ -22,7 +22,8 @@ class HomeScreen(Screen):
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
-            "y": "chevron-down.png"
+            "y": "chevron-down.png",
+            "a": "chevron-right.png"
         })
         self._setup_menu()
 
