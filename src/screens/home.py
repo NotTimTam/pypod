@@ -1,7 +1,7 @@
 from functools import partial
 
 from src.utils.screen import Screen
-from src.utils.user import get_current_user
+from pypod import __version__
 
 from src.ui.menu import Menu
 from src.ui.header import Header
@@ -17,7 +17,7 @@ class HomeScreen(Screen):
             padding_right=0
         )
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=get_current_user())
+        self.header = Header(title=f"PYPOD v{__version__}")
         self.menu = Menu(state=menu_state)
         self._setup_menu()
 
