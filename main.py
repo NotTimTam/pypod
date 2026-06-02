@@ -62,10 +62,10 @@ def load_screen(name, state=None):
     """Factory function to load screens by name."""
     if name == "home":
         from src.screens.home import HomeScreen as _HomeScreen
-        return _HomeScreen(state=state)
+        return _HomeScreen(state=state, load_screen=load_screen)
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
-        return _MusicScreen(state=state)
+        return _MusicScreen(state=state, load_screen=load_screen)
     else:
         raise ValueError(f"Unknown screen: {name}")
 
@@ -82,7 +82,7 @@ text_y = int(disp.height - size_y - 4)
 
 # Screen state management
 current_screen_name = "home"
-current_screen = load_screen(current_screen_name, {}, load_screen)
+current_screen = load_screen(current_screen_name, {})
 
 try:
     while True:
