@@ -37,12 +37,10 @@ class InputHandler:
         atexit.register(self.cleanup)
 
     def _pressed(self, label):
-        print(label, "down")
         self.LAST_BUTTON = label
         setattr(self.state, label, True)
 
     def _released(self, label):
-        print(label, "up")
         setattr(self.state, label, False)
 
     def cleanup(self):
