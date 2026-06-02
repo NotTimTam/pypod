@@ -28,7 +28,8 @@ class InputHandler:
         self.LAST_BUTTON = '_'
         self.state = ButtonState()
 
-        # Setup GPIO (same as your original)
+        # Setup GPIO
+        GPIO.cleanup()
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.BUTTONS, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
