@@ -25,6 +25,7 @@ class InputHandler:
         self.PIN_TO_LABEL = dict(zip(self.BUTTONS, self.LABELS))
         self.LAST_BUTTON = '_'
         self.state = ButtonState()
+        self.event_queue = []
 
         self._buttons = {}
         for pin, label in self.PIN_TO_LABEL.items():
@@ -39,9 +40,11 @@ class InputHandler:
     def _pressed(self, label):
         self.LAST_BUTTON = label
         setattr(self.state, label, True)
+        self.event_queue.append(('pressed', label))
 
     def _released(self, label):
         setattr(self.state, label, False)
+        self.event_queue.append(('released', label))
 
     def button_state(self, button_label):
         """Return whether the named button is currently pressed.
@@ -52,6 +55,14 @@ class InputHandler:
         if label not in self.LABELS:
             raise ValueError(f"Unknown button label: {button_label}")
         return getattr(self.state, label)
+
+    def dequeue(self):
+        """Get next event from queue, or None if empty."""
+        return self.event_queue.pop(0) if self.event_queue else None
+
+    def has_events(self):
+        """Check if there are pending events."""
+        return len(self.event_queue) > 0
 
     def cleanup(self):
         for b in self._buttons.values():

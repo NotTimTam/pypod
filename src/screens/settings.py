@@ -45,8 +45,10 @@ class SettingsScreen(Screen):
         """Handle input."""
         self.menu.handle_input()
 
-        if input_handler.button_state("b"):
-            self._request_screen("home")
+        while input_handler.has_events():
+            event_type, button = input_handler.dequeue()
+            if event_type == 'pressed' and button.upper() == 'B':
+                self._request_screen("home")
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
