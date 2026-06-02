@@ -64,6 +64,30 @@ class InputHandler:
         """Check if there are pending events."""
         return len(self.event_queue) > 0
 
+    def process_events(self, callback):
+        """Process events by calling callback(event_type, button) for each.
+        Only dequeues events where callback returns True (handled).
+        """
+        while self.has_events():
+            event = self.event_queue[0]
+            if callback(*event):
+                self.event_queue.pop(0)
+            else:
+                break
+
+    def handle_button(self, button, callback):
+        """If button was pressed, call callback and consume the event."""
+        button = button.upper()
+        while self.has_events():
+            event_type, btn = self.event_queue[0]
+            if event_type == 'pressed' and btn == button:
+                callback()
+                self.event_queue.pop(0)
+                return True
+            else:
+                break
+        return False
+
     def cleanup(self):
         for b in self._buttons.values():
             b.close()

@@ -41,15 +41,9 @@ class Menu:
             self.items[self.current_index].callback()
 
     def handle_input(self):
-        while input_handler.has_events():
-            event_type, button = input_handler.dequeue()
-            if event_type == 'pressed':
-                if button.upper() == 'X':  # Up
-                    self.move_up()
-                elif button.upper() == 'Y':  # Down
-                    self.move_down()
-                elif button.upper() == 'A':  # Select
-                    self.select_current()
+        input_handler.handle_button("X", self.move_up)
+        input_handler.handle_button("Y", self.move_down)
+        input_handler.handle_button("A", self.select_current)
 
     def render(self, img, draw, font, x, y, width, height):
         """

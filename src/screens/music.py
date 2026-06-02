@@ -44,11 +44,7 @@ class MusicScreen(Screen):
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-
-        while input_handler.has_events():
-            event_type, button = input_handler.dequeue()
-            if event_type == 'pressed' and button.upper() == 'B':
-                self._request_screen("home")
+        input_handler.handle_button("B", lambda: self._request_screen("home"))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
