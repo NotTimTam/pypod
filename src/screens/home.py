@@ -1,7 +1,5 @@
 from src.utils.screen import Screen
 from src.utils.menu import Menu
-from src.utils.input import input_handler
-
 
 class HomeScreen(Screen):
     """Home screen with navigation menu."""
@@ -32,15 +30,10 @@ class HomeScreen(Screen):
     def _on_about(self):
         print("About screen selected")
 
-    def handle_input(self, button):
-        """Handle input for menu navigation."""
-        if button == "x":  # Up
-            self.menu.move_up()
-        elif button == "y":  # Down
-            self.menu.move_down()
-        elif button == "a":  # Select
-            self.menu.select_current()
-
+    def handle_input(self):
+        """Handle input."""
+        self.menu.handle_input()
+        
     def render(self, img, draw, font, width, height):
         """Render the home screen with menu centered."""
         # Calculate center position for menu

@@ -1,5 +1,5 @@
 import time
-
+from src.utils.input import input_handler
 
 class MenuItem:
     """Represents a single menu item."""
@@ -39,6 +39,15 @@ class Menu:
         """Execute callback for current item."""
         if self.items and self.current_index < len(self.items):
             self.items[self.current_index].callback()
+
+    def handle_input(self):
+        print(input_handler._buttons)
+        # if button == "x":  # Up
+        #     self.menu.move_up()
+        # elif button == "y":  # Down
+        #     self.menu.move_down()
+        # elif button == "a":  # Select
+        #     self.menu.select_current()
 
     def render(self, img, draw, font, x, y, width, height):
         """

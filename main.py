@@ -11,7 +11,6 @@ import traceback
 
 from PIL import Image, ImageDraw, ImageFont
 
-from src.utils.input import input_handler
 from src.utils.device import get_battery_status, start_device_thread
 
 #########################################
@@ -86,15 +85,11 @@ current_screen = load_screen(current_screen_name, screen_state.get(current_scree
 try:
     while True:
         status = get_battery_status()
-        button = input_handler.LAST_BUTTON
 
         # Clear display
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
 
-        # Handle input if a button was pressed
-        if button:
-            current_screen.handle_input(button)
-            input_handler.LAST_BUTTON = None
+        current_screen.handle_input()
 
         # Render screen
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
