@@ -32,7 +32,7 @@ class InputHandler:
             b.when_pressed  = lambda l=label: self._pressed(l)
             b.when_released = lambda l=label: self._released(l)
             self._buttons[pin] = b
-            print(f"Pin {pin} ({label}) OK")
+            print(f"DEBUG: Pin {pin} ({label}) OK")
 
         atexit.register(self.cleanup)
 
