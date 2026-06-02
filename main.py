@@ -95,6 +95,12 @@ current_screen = load_screen(current_screen_name, {})
 
 try:
     while True:
+        if (requested_screen):
+            current_screen_name = requested_screen
+            current_screen = load_screen(current_screen_name, requested_state)
+            requested_state = None
+            requested_screen = None
+
         status = get_battery_status()
 
         # Clear display
