@@ -8,9 +8,9 @@ PISUGAR_SOCK = "/tmp/pisugar-server.sock"
 UPDATE_INTERVAL = 20  # seconds (adjust 15–30 as needed)
 
 BATTERY_STATUS_UNAVAILABLE = {
-    "battery_pct": 0.0,
+    "battery_pct": -1.0,
     "is_plugged": False,
-    "voltage": 0.0,
+    "voltage": -1.0,
 }
 
 # voltage smoothing
