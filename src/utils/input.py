@@ -43,6 +43,16 @@ class InputHandler:
     def _released(self, label):
         setattr(self.state, label, False)
 
+    def button_state(self, button_label):
+        """Return whether the named button is currently pressed.
+
+        Accepts case-insensitive labels like 'A', 'a', 'B', etc.
+        """
+        label = str(button_label).upper()
+        if label not in self.LABELS:
+            raise ValueError(f"Unknown button label: {button_label}")
+        return getattr(self.state, label)
+
     def cleanup(self):
         for b in self._buttons.values():
             b.close()
