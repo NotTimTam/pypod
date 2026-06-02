@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, ImageOps
 from pathlib import Path
 from src.utils.constants import SCREEN_SIZE
 
@@ -28,6 +28,7 @@ class ControlIcons:
         path = Path(__file__).parent.parent / "assets" / "images" / filename
         try:
             img = Image.open(path).resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
+            img = ImageOps.invert(img.convert("RGB")).convert("RGBA")
             self._image_cache[filename] = img
             return img
         except Exception as e:
