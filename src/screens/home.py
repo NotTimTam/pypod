@@ -32,8 +32,8 @@ class HomeScreen(Screen):
     def _setup_menu(self):
         """Define menu items and their callbacks."""
         self.menu.add_item("Music >", partial(self._request_screen, "music", {}))
-        self.menu.add_item("Extras >", partial(self._request_screen, "extras", {}))
         self.menu.add_item("Settings >", partial(self._request_screen, "settings", {}))
+        # self.menu.add_item("Extras >", partial(self._request_screen, "extras", {}))
         # self.menu.add_item("Shuffle Songs", partial(self._request_screen, "shuffle_songs"))
 
     def handle_input(self):

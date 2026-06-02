@@ -1,14 +1,5 @@
 # Menus to Add
 
-## Music
-Playlists
-Artists
-Albums
-Songs
-Podcasts
-Genres
-Audiobooks
-
 ## Settings
 
 ### About >
