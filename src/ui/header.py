@@ -11,8 +11,6 @@ class Header:
         return bbox[3] - bbox[1]
 
     def render(self, img, draw, font):
-        if not self.items:
-            return
 
         # Calculate item height
         bbox = draw.textbbox((0, 0), self.title, font=font)
