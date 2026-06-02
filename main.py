@@ -11,6 +11,7 @@ import traceback
 
 from PIL import Image, ImageDraw, ImageFont
 
+from src.utils.constants import SCREEN_SIZE
 from src.utils.device import get_battery_status, start_device_thread
 
 #########################################
@@ -28,7 +29,7 @@ start_device_thread()
 
 # Create ST7789 LCD display class.
 disp = st7789.ST7789(
-    height= 240,
+    height= SCREEN_SIZE,
     rotation= 90,
     port=0,
     cs=st7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT

@@ -6,6 +6,8 @@ COLORS = {
     "dark_gray": (64, 64, 64),
 }
 
+SCREEN_SIZE=240
+
 HOLD_TIME_MS = 1000  # Time to hold RIGHT arrow to open Now Playing
 
 # Audio file extensions (all formats VLC supports)

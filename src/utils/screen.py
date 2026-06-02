@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-
 class Screen(ABC):
     """Base class for all screens in the navigation system."""
 

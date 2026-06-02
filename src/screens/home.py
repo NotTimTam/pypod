@@ -1,7 +1,10 @@
 from functools import partial
 
 from src.utils.screen import Screen
-from src.utils.menu import Menu
+from src.utils.user import get_current_user
+
+from src.ui.menu import Menu
+from src.ui.header import Header
 
 class HomeScreen(Screen):
     """Home screen with navigation menu."""
@@ -14,6 +17,7 @@ class HomeScreen(Screen):
             padding_right=0
         )
         menu_state = state.get("menu", {}) if state else {}
+        self.header = Header(title=get_current_user())
         self.menu = Menu(state=menu_state)
         self._setup_menu()
 
@@ -34,12 +38,17 @@ class HomeScreen(Screen):
     def render(self, img, draw, font, width, height):
         """Render the home screen with menu centered."""
         # Calculate center position for menu
+        header_height = self.header.get_height(draw, font)
+
         content_width = width - self.padding_left - self.padding_right
         content_height = height - self.padding_top - self.padding_bottom
         menu_width = content_width - 8
         menu_height = content_height
         menu_x = self.padding_left + 4
-        menu_y = self.padding_top
+        menu_y = self.padding_top + header_height
+
+        # Render header
+        self.header.render(img, draw, font)
 
         # Render menu
         self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
