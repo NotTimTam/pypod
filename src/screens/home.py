@@ -1,7 +1,7 @@
 from functools import partial
 
 from src.utils.screen import Screen
-from pypod import __version__
+from src import __version__
 
 from src.ui.menu import Menu
 from src.ui.header import Header
