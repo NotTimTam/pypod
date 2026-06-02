@@ -9,12 +9,11 @@ import st7789
 import signal
 import traceback
 
-
-
 from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.input import input_handler
 from src.utils.device import get_battery_status, start_device_thread
+from src.screens.home import HomeScreen
 
 #########################################
 
@@ -72,15 +71,30 @@ size_y = bbox[3] - bbox[1]
 text_x = int(0)
 text_y = int(disp.height - size_y - 4)
 
-t_start = time.time()
+# Initialize home screen
+current_screen = HomeScreen(WIDTH, HEIGHT)
 
 try:
     while True:
         status = get_battery_status()
+        button = input_handler.LAST_BUTTON
 
-        draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0)) # Clear display.
-        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{"+" if status['is_plugged'] else ''} | {status['voltage']:.2f}V | L: {input_handler.LAST_BUTTON or "_"}", fill=(255, 255, 255), font=font)
+        # Clear display
+        draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
+
+        # Handle input if a button was pressed
+        if button:
+            current_screen.handle_input(button)
+            input_handler.LAST_BUTTON = None
+
+        # Render screen
+        current_screen.render(img, draw, font)
+
+        # Render battery info in bottom bar (doesn't interfere with screen content)
+        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{"+" if status['is_plugged'] else ''} | {status['voltage']:.2f}V", fill=(255, 255, 255), font=font)
+
         disp.display(img)
+
 except Exception as e:
     traceback.print_exc(file=sys.stderr)
 finally:
