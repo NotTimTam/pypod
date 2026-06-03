@@ -291,10 +291,6 @@ class Jellyfin:
     def get_songs(self, album_id=None, artist_id=None, genre_id=None):
         """
         Get all songs, optionally filtered by album, artist, or genre.
-        
-        CRITICAL FIX: Use /Items endpoint with API key (not /Users/{userId}/Items)
-        According to Jellyfin docs, userId is only needed for token-based auth,
-        not for API key authentication.
         """
         params = {
             "Recursive": "true",
