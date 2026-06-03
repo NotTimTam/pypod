@@ -87,6 +87,9 @@ def load_screen(name, state=None):
     elif name == "settings":
         from src.screens.settings import SettingsScreen as _SettingsScreen
         return _SettingsScreen(state=state, request_screen=request_screen)
+    elif name == "jellyfin":
+        from src.screens.jellyfin import JellyfinScreen as _JellyfinScreen
+        return _JellyfinScreen(state=state, request_screen=request_screen, jellyfin=jellyfin)
     else:
         raise ValueError(f"Unknown screen: {name}")
 
