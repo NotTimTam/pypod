@@ -16,9 +16,9 @@ class DownloadManager:
         self.is_album_download = False  # True if downloading full album
 
         # Start worker thread
+        self._should_stop = False
         self._worker_thread = threading.Thread(target=self._download_worker, daemon=True)
         self._worker_thread.start()
-        self._should_stop = False
 
     def start_download(self, item_id, is_album=False):
         """Start downloading a song or album. Returns True if started successfully."""
