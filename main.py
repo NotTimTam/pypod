@@ -80,7 +80,7 @@ def load_screen(name, state=None):
     """Factory function to load screens by name."""
     if name == "home":
         from src.screens.home import HomeScreen as _HomeScreen
-        return _HomeScreen(state=state, request_screen=request_screen)
+        return _HomeScreen(state=state, request_screen=request_screen, jellyfin=True)
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
         return _MusicScreen(state=state, request_screen=request_screen)

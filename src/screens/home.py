@@ -10,7 +10,7 @@ from src.ui.control_icons import ControlIcons
 class HomeScreen(Screen):
     """Home screen with navigation menu."""
 
-    def __init__(self, state=None, request_screen=None):
+    def __init__(self, state=None, request_screen=None, jellyfin=False):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
@@ -18,6 +18,7 @@ class HomeScreen(Screen):
             padding_right=32
         )
         self._request_screen = request_screen
+        self._jellyfin = jellyfin
 
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"PYPOD v{__version__}")
@@ -33,6 +34,8 @@ class HomeScreen(Screen):
         """Define menu items and their callbacks."""
         self.menu.add_item("Music >", partial(self._request_screen, "music", {}))
         self.menu.add_item("Settings >", partial(self._request_screen, "settings", {}))
+        if (self._jellyfin): 
+            self.menu.add_item("Jellyfin >", partial(self._request_screen, "jellyfin", {}))
         # self.menu.add_item("Extras >", partial(self._request_screen, "extras", {}))
         # self.menu.add_item("Shuffle Songs", partial(self._request_screen, "shuffle_songs"))
 
