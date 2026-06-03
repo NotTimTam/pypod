@@ -5,3 +5,4 @@ python-vlc
 st7789
 lgpio
 gpiozero
+requests

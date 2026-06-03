@@ -12,6 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.constants import SCREEN_SIZE
 from src.utils.device import get_battery_status, start_device_thread
+from src.utils.jellyfin import Jellyfin
 
 #########################################
 
@@ -22,6 +23,14 @@ LIBRARY = os.getenv("LIBRARY")
 if not LIBRARY:
     raise ValueError("No LIBRARY env variable defined")
 
+JELLYFIN_URL = os.getenv("JELLYFIN_URL")
+
+if JELLYFIN_URL:
+    JELLYFIN_API_KEY = os.getenv("JELLYFIN_API_KEY")
+    JELLYFIN_LIBRARY  = os.getenv("JELLYFIN_LIBRARY")
+    if not (JELLYFIN_API_KEY and JELLYFIN_LIBRARY):
+        raise ValueError("JELLYFIN_URL configured but missing JELLYFIN_API_KEY or JELLYFIN_LIBRARY")
+    jellyfin = Jellyfin(JELLYFIN_URL, JELLYFIN_API_KEY, JELLYFIN_LIBRARY, download_root=LIBRARY + "/music")
 
 # Begin polling for battery data
 start_device_thread()
