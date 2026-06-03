@@ -136,26 +136,24 @@ class Jellyfin:
         """
         Get all music albums, optionally filtered by artist.
         
-        CRITICAL FIX for 400 error:
-        - When using API key authentication, use /Items endpoint (not /Users/{userId}/Items)
-        - According to Jellyfin docs: userId is "Required when NOT using an API key"
-        - With API key, use /Items directly with IncludeItemTypes=MusicAlbum
+        CRITICAL FIX for 404 error on artist albums:
+        - The endpoint /Artists/{id}/Albums does NOT exist in Jellyfin (causes 404)
+        - Correct approach: use /Items endpoint with ArtistIds parameter filter
+        - This works with API key authentication (no user context needed)
         
-        Reference: Melodee official implementation shows correct pattern
+        Reference: Jellyfin API uses filtering parameters, not nested endpoints for this
         """
+        params = {
+            "Recursive": "true",
+            "IncludeItemTypes": "MusicAlbum",
+            "Limit": 1000,
+        }
+        
         if artist_id:
-            # Get albums for a specific artist
-            params = {"Limit": 1000}
-            data = self._request(f"Artists/{quote(artist_id)}/Albums", params=params)
-        else:
-            # Get all albums using /Items endpoint with API key
-            # When using API key, userId parameter is not needed/used
-            params = {
-                "Recursive": "true",
-                "IncludeItemTypes": "MusicAlbum",
-                "Limit": 1000,
-            }
-            data = self._request("Items", params=params)
+            # Filter by artist ID - this is the correct pattern for Jellyfin
+            params["ArtistIds"] = artist_id
+        
+        data = self._request("Items", params=params)
         
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
