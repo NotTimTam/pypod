@@ -2,8 +2,6 @@ import threading
 import time
 from pathlib import Path
 
-from src.utils.jellyfin import JellyfinError
-
 
 class DownloadManager:
     """Manages downloads with progress tracking and thread-safe state."""
@@ -16,7 +14,6 @@ class DownloadManager:
         self.current_status = "idle"  # idle/downloading/failed
         self.error_message = None
         self.is_album_download = False  # True if downloading full album
-        self.current_download_total = 0  # For album progress tracking
 
         # Start worker thread
         self._should_stop = False
@@ -34,7 +31,6 @@ class DownloadManager:
             self.current_status = "downloading"
             self.error_message = None
             self.is_album_download = is_album
-            self.current_download_total = 0
             return True
 
     def update_progress(self, percent):
@@ -51,7 +47,6 @@ class DownloadManager:
             self.current_status = "idle"
             self.error_message = None
             self.is_album_download = False
-            self.current_download_total = 0
 
     def fail_download(self, error_message):
         """Mark current download as failed."""
@@ -93,7 +88,6 @@ class DownloadManager:
             self.current_status = "idle"
             self.error_message = None
             self.is_album_download = False
-            self.current_download_total = 0
 
     def _download_worker(self):
         """Background worker thread for downloads."""
@@ -117,27 +111,40 @@ class DownloadManager:
 
     def _download_song(self, song_id):
         """Download a single song with progress tracking."""
-        # Get item metadata
-        item = self.jellyfin.get_item(
-            song_id,
-            fields=["Album", "AlbumId", "Artists", "AlbumArtists", "MediaSources"]
+        # Use streaming download to track progress
+        response = self.jellyfin.session.get(
+            self.jellyfin._build_url(f"Items/{song_id}/Download?Static=true"),
+            stream=True,
+            timeout=60
         )
 
-        # Construct folder path
+        if response.status_code >= 400:
+            from src.utils.jellyfin import JellyfinError
+            raise JellyfinError(f"Download failed ({response.status_code})")
+
+        # Get item details for path construction
+        item = self.jellyfin.get_item(song_id, fields=["Album", "AlbumId", "Artists", "AlbumArtists", "Path", "MediaSources"])
         album = self.jellyfin._sanitize_path_component(item.get("Album") or "Unknown Album")
         artists = item.get("Artists") or item.get("AlbumArtists") or ["Unknown Artist"]
         artist = self.jellyfin._sanitize_path_component(artists[0])
 
-        download_root = self.jellyfin._ensure_download_root()
-        album_folder = download_root / artist / album
+        album_folder = self.jellyfin._ensure_download_root() / artist / album
         album_folder.mkdir(parents=True, exist_ok=True)
 
-        # Determine filename from MediaSources
-        filename = self._get_filename(item, song_id)
+        # Get filename
+        media_sources = item.get("MediaSources") or []
+        if media_sources and isinstance(media_sources, list):
+            container = media_sources[0].get("Container")
+            if container:
+                filename = f"{self.jellyfin._sanitize_path_component(item.get('Name') or song_id)}.{container.lower()}"
+            else:
+                filename = f"{self.jellyfin._sanitize_path_component(item.get('Name') or song_id)}.mp3"
+        else:
+            filename = f"{self.jellyfin._sanitize_path_component(item.get('Name') or song_id)}.mp3"
+
         target_path = album_folder / filename
 
-        # Stream download with progress tracking
-        response = self.jellyfin.get_item_stream(song_id)
+        # Download with progress tracking
         total_size = int(response.headers.get("content-length", 0))
         downloaded = 0
 
@@ -150,41 +157,24 @@ class DownloadManager:
                         progress = int((downloaded / total_size) * 100)
                         self.update_progress(progress)
 
-        # Download album art if available
+        # Download album art if not already present
         album_id = item.get("AlbumId")
         if album_id:
-            art_path = self.jellyfin._album_art_path(album_folder)
-            if not art_path.exists():
-                self.jellyfin.download_album_art(album_id, art_path)
+            self.jellyfin._download_album_art(album_id, album_folder)
 
     def _download_album(self, album_id):
-        """Download all songs in an album with progress tracking."""
+        """Download all songs in an album."""
         songs = self.jellyfin.get_songs(album_id=album_id)
-        
-        with self._lock:
-            self.current_download_total = len(songs)
 
         for idx, song in enumerate(songs):
-            # Download individual song
             self._download_song(song["Id"])
-            
-            # Update album-level progress (idx+1 because idx starts at 0)
-            album_progress = int(((idx + 1) / len(songs)) * 100)
-            self.update_progress(album_progress)
+            # Update overall progress for album
+            progress = int((idx / len(songs)) * 100)
+            self.update_progress(progress)
 
-    @staticmethod
-    def _get_filename(item, item_id):
-        """Extract filename from item metadata."""
-        media_sources = item.get("MediaSources") or []
-        
-        if media_sources and isinstance(media_sources, list):
-            container = media_sources[0].get("Container")
-            if container:
-                return f"{item.get('Name') or item_id}.{container.lower()}"
-        
-        return f"{item.get('Name') or item_id}.mp3"
+        # Ensure we hit 100%
+        self.update_progress(100)
 
     def cleanup(self):
         """Clean up resources."""
         self._should_stop = True
-        self._worker_thread.join(timeout=5)
