@@ -136,29 +136,26 @@ class Jellyfin:
         """
         Get all music albums, optionally filtered by artist.
         
-        CRITICAL FIX:
-        - Original used: /Users/{userId}/Items with IncludeItemTypes=MusicAlbum (questionable)
-        - Better endpoint: /Artists/{artistId}/Albums or /Albums
+        CRITICAL FIX for 400 error:
+        - When using API key authentication, use /Items endpoint (not /Users/{userId}/Items)
+        - According to Jellyfin docs: userId is "Required when NOT using an API key"
+        - With API key, use /Items directly with IncludeItemTypes=MusicAlbum
         
-        Note: The /Items endpoint approach may still cause issues.
-        Using library-aware /Albums endpoint is safer.
+        Reference: Melodee official implementation shows correct pattern
         """
-        user_id = self._get_user_id()
-        section_id = self._resolve_library_section()
-        
         if artist_id:
             # Get albums for a specific artist
             params = {"Limit": 1000}
             data = self._request(f"Artists/{quote(artist_id)}/Albums", params=params)
         else:
-            # Get all albums - using Items endpoint with proper parameters
+            # Get all albums using /Items endpoint with API key
+            # When using API key, userId parameter is not needed/used
             params = {
                 "Recursive": "true",
                 "IncludeItemTypes": "MusicAlbum",
-                "ParentId": section_id,
                 "Limit": 1000,
             }
-            data = self._request(f"Users/{user_id}/Items", params=params)
+            data = self._request("Items", params=params)
         
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
@@ -297,15 +294,13 @@ class Jellyfin:
         """
         Get all songs, optionally filtered by album, artist, or genre.
         
-        Uses: GET /Users/{userId}/Items with IncludeItemTypes=Audio
-        Note: Audio is the correct type name for songs (not MusicTrack or Song)
+        CRITICAL FIX: Use /Items endpoint with API key (not /Users/{userId}/Items)
+        According to Jellyfin docs, userId is only needed for token-based auth,
+        not for API key authentication.
         """
-        user_id = self._get_user_id()
-        section_id = self._resolve_library_section()
         params = {
             "Recursive": "true",
             "IncludeItemTypes": "Audio",
-            "ParentId": section_id,
             "Fields": "Album,AlbumId,Artists,AlbumArtists,Genres,Path,MediaSources,Duration",
             "Limit": 1000,
         }
@@ -316,7 +311,7 @@ class Jellyfin:
         if genre_id:
             params["GenreIds"] = genre_id
         
-        data = self._request(f"Users/{user_id}/Items", params=params)
+        data = self._request("Items", params=params)
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
             {
