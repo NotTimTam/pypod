@@ -39,9 +39,16 @@ class Jellyfin:
             return self._section_id
 
         sections = self._request("Library/Sections")
+        if isinstance(sections, dict):
+            sections = sections.get("Items", [])
+
         for section in sections:
             name = section.get("Name")
-            if section.get("Id") == self.library or (isinstance(self.library, str) and name and name.lower() == self.library.lower()):
+            if section.get("Id") == self.library or (
+                isinstance(self.library, str)
+                and name
+                and name.lower() == self.library.lower()
+            ):
                 self._section_id = section["Id"]
                 return self._section_id
 
