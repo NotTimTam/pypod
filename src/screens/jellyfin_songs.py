@@ -209,7 +209,7 @@ class JellyfinSongsScreen(Screen):
         # Show "Cannot exit while downloading" message
         if download_state["current_status"] == "downloading" and download_state["current_download_id"]:
             status_text = f"Downloading: {download_state['current_progress']}%"
-            print(error_text)
+            print(status_text)
             draw.text((self.padding_left + 4, menu_y + 40), status_text, fill=(0, 255, 0), font=font)
 
         # Show error message
