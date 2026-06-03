@@ -1,7 +1,5 @@
-
 import re
 import json
-import re
 from pathlib import Path
 from urllib.parse import quote
 
@@ -14,6 +12,18 @@ class JellyfinError(Exception):
 
 class Jellyfin:
     def __init__(self, url, api_key, library, download_root=None):
+        """
+        Initialize Jellyfin client.
+        
+        Args:
+            url: Jellyfin server URL (e.g., "http://localhost:8096")
+            api_key: API key for authentication
+            library: Library name (plaintext) or library ID
+            download_root: Optional root directory for downloads
+            
+        Note: The library parameter is resolved using /Users/Me/Views endpoint,
+              which returns the actual library ID needed for API calls.
+        """
         self.url = url.rstrip("/")
         self.api_key = api_key
         self.library = library
@@ -25,6 +35,7 @@ class Jellyfin:
             "User-Agent": "pipod-jellyfin-client/1.0",
         })
         self._section_id = None
+        self._user_id = None
 
     def _build_url(self, path):
         return f"{self.url}/{path.lstrip('/')}"
@@ -36,27 +47,71 @@ class Jellyfin:
             raise JellyfinError(f"Jellyfin request failed ({resp.status_code}): {resp.text}")
         return resp if stream else resp.json()
 
+    def _get_user_id(self):
+        """
+        Get the current user ID. This is required for all user-scoped endpoints.
+        
+        Uses: GET /Users/Me
+        Returns the ID of the authenticated user.
+        """
+        if self._user_id:
+            return self._user_id
+        
+        user_info = self._request("Users/Me")
+        self._user_id = user_info.get("Id")
+        if not self._user_id:
+            raise JellyfinError("Could not determine user ID from /Users/Me endpoint")
+        return self._user_id
+
     def _resolve_library_section(self):
+        """
+        Resolve library name or ID to actual library ID.
+        
+        CRITICAL FIX from original code:
+        - Original used: /Library/Sections (WRONG - returns 404)
+        - Correct endpoint: /Users/{userId}/Views (per Jellyfin API docs)
+        
+        Uses: GET /Users/{userId}/Views
+        This endpoint returns user-accessible library views with their IDs and names.
+        """
         if self._section_id:
             return self._section_id
 
-        sections = self._request("Library/Sections")
-        if isinstance(sections, dict):
-            sections = sections.get("Items", [])
+        user_id = self._get_user_id()
+        
+        # FIX: Use /Users/{userId}/Views instead of /Library/Sections
+        response = self._request(f"Users/{user_id}/Views")
+        
+        # Handle both dict and list responses
+        views = response.get("Items", []) if isinstance(response, dict) else response
+        
+        if not views:
+            raise JellyfinError(
+                f"No library views found for user {user_id}. "
+                "Check your Jellyfin server and user permissions."
+            )
 
-        for section in sections:
-            name = section.get("Name")
-            if section.get("Id") == self.library or (
-                isinstance(self.library, str)
-                and name
-                and name.lower() == self.library.lower()
-            ):
-                self._section_id = section["Id"]
+        # Try to match by ID first, then by name (case-insensitive)
+        for view in views:
+            view_id = view.get("Id")
+            view_name = view.get("Name", "")
+            view_type = view.get("Type", "")
+            
+            # Match by ID
+            if view_id == self.library:
+                self._section_id = view_id
+                return self._section_id
+            
+            # Match by name (case-insensitive)
+            if isinstance(self.library, str) and view_name.lower() == self.library.lower():
+                self._section_id = view_id
                 return self._section_id
 
+        # Provide helpful error message with available libraries
+        available = [f"{v.get('Name')} (ID: {v.get('Id')}, Type: {v.get('Type')})" for v in views]
         raise JellyfinError(
-            f"Unable to resolve Jellyfin library section '{self.library}'. "
-            "Set JELLYFIN_LIBRARY to the library name or section id."
+            f"Unable to resolve library '{self.library}'.\n"
+            f"Available libraries:\n" + "\n".join(f"  - {lib}" for lib in available)
         )
 
     @staticmethod
@@ -73,6 +128,16 @@ class Jellyfin:
         return self.download_root
 
     def get_artists(self):
+        """
+        Get all music artists from the configured library.
+        
+        Uses: GET /Users/{userId}/Items
+        Params:
+            - ParentId: Library ID (from /Users/{userId}/Views)
+            - IncludeItemTypes: MusicArtist (correct type name per Jellyfin API)
+            - Recursive: true (search nested items)
+        """
+        user_id = self._get_user_id()
         section_id = self._resolve_library_section()
         params = {
             "Recursive": "true",
@@ -81,7 +146,7 @@ class Jellyfin:
             "Fields": "Genres,AlbumCount,AlbumArtists",
             "Limit": 1000,
         }
-        data = self._request("Users/Me/Items", params=params)
+        data = self._request(f"Users/{user_id}/Items", params=params)
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
             {
@@ -95,6 +160,12 @@ class Jellyfin:
         ]
 
     def get_albums(self, artist_id=None):
+        """
+        Get all music albums, optionally filtered by artist.
+        
+        Uses: GET /Users/{userId}/Items
+        """
+        user_id = self._get_user_id()
         section_id = self._resolve_library_section()
         params = {
             "Recursive": "true",
@@ -105,7 +176,7 @@ class Jellyfin:
         }
         if artist_id:
             params["ArtistIds"] = artist_id
-        data = self._request("Users/Me/Items", params=params)
+        data = self._request(f"Users/{user_id}/Items", params=params)
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
             {
@@ -120,6 +191,11 @@ class Jellyfin:
         ]
 
     def get_genres(self):
+        """
+        Get all music genres from the configured library.
+        
+        Uses: GET /Genres
+        """
         section_id = self._resolve_library_section()
         params = {
             "IncludeItemTypes": "Audio",
@@ -135,13 +211,19 @@ class Jellyfin:
         ]
 
     def get_playlists(self):
+        """
+        Get all playlists for the current user.
+        
+        Uses: GET /Users/{userId}/Playlists
+        """
+        user_id = self._get_user_id()
         params = {
             "Recursive": "true",
             "IncludeItemTypes": "Audio",
             "Fields": "ItemCount,Name,IsLocked,UserId",
             "Limit": 1000,
         }
-        playlists = self._request("Users/Me/Playlists", params=params)
+        playlists = self._request(f"Users/{user_id}/Playlists", params=params)
         if isinstance(playlists, dict):
             playlists = playlists.get("Items", [])
         return [
@@ -155,6 +237,11 @@ class Jellyfin:
         ]
 
     def get_playlist_items(self, playlist_id):
+        """
+        Get all items in a specific playlist.
+        
+        Uses: GET /Playlists/{playlistId}/Items
+        """
         params = {
             "Fields": "Album,AlbumId,Artists,AlbumArtists,Genres,Path,MediaSources",
             "Limit": 1000,
@@ -177,6 +264,7 @@ class Jellyfin:
         ]
 
     def download_playlist(self, playlist_id, download_root=None):
+        """Download all songs in a playlist."""
         download_root = Path(download_root) if download_root is not None else self.download_root
         if download_root is None:
             raise JellyfinError("download_playlist requires a download_root or Jellyfin(download_root=...) to be configured.")
@@ -223,6 +311,12 @@ class Jellyfin:
         }
 
     def get_songs(self, album_id=None, artist_id=None, genre_id=None):
+        """
+        Get all songs, optionally filtered by album, artist, or genre.
+        
+        Uses: GET /Users/{userId}/Items
+        """
+        user_id = self._get_user_id()
         section_id = self._resolve_library_section()
         params = {
             "Recursive": "true",
@@ -237,7 +331,7 @@ class Jellyfin:
             params["ArtistIds"] = artist_id
         if genre_id:
             params["GenreIds"] = genre_id
-        data = self._request("Users/Me/Items", params=params)
+        data = self._request(f"Users/{user_id}/Items", params=params)
         items = data.get("Items", []) if isinstance(data, dict) else data
         return [
             {
@@ -255,6 +349,7 @@ class Jellyfin:
         ]
 
     def get_item(self, item_id, fields=None):
+        """Get metadata for a specific item."""
         params = {}
         if fields:
             params["Fields"] = ",".join(fields)
