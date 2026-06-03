@@ -11,7 +11,7 @@ import traceback
 from PIL import Image, ImageDraw, ImageFont
 
 from src.utils.constants import SCREEN_SIZE
-from src.utils.device import get_battery_status, start_device_thread
+from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
 from src.utils.download_manager import DownloadManager
 
@@ -130,8 +130,6 @@ try:
             requested_state = None
             requested_screen = None
 
-        status = get_battery_status()
-
         # Clear display
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
 
@@ -140,10 +138,6 @@ try:
         # Render screen
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
 
-        # Render battery info in bottom bar (doesn't interfere with screen content)
-        plug = "+" if status['is_plugged'] else ""
-        draw.text((text_x, text_y), f"{status['battery_pct']:.1f}%{plug} | {status['voltage']:.2f}V", fill=(255, 255, 255), font=font)
-        
         disp.display(img)
 
 except Exception as e:
