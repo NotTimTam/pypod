@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 from src.utils.constants import SCREEN_SIZE
 from src.utils.device import get_battery_status, start_device_thread
 from src.utils.jellyfin import Jellyfin
+from src.utils.download_manager import DownloadManager
 
 #########################################
 
@@ -31,6 +32,10 @@ if JELLYFIN_URL:
     if not (JELLYFIN_API_KEY and JELLYFIN_LIBRARY):
         raise ValueError("JELLYFIN_URL configured but missing JELLYFIN_API_KEY or JELLYFIN_LIBRARY")
     jellyfin = Jellyfin(JELLYFIN_URL, JELLYFIN_API_KEY, JELLYFIN_LIBRARY, download_root=LIBRARY + "/music")
+    download_manager = DownloadManager(jellyfin=jellyfin)
+else:
+    jellyfin = None
+    download_manager = None
 
 # Begin polling for battery data
 start_device_thread()
@@ -89,7 +94,16 @@ def load_screen(name, state=None):
         return _SettingsScreen(state=state, request_screen=request_screen)
     elif name == "jellyfin":
         from src.screens.jellyfin import JellyfinScreen as _JellyfinScreen
-        return _JellyfinScreen(state=state, request_screen=request_screen, jellyfin=jellyfin)
+        return _JellyfinScreen(state=state, request_screen=request_screen, jellyfin=jellyfin, download_manager=download_manager)
+    elif name == "jellyfin_artists":
+        from src.screens.jellyfin_artists import JellyfinArtistsScreen as _JellyfinArtistsScreen
+        return _JellyfinArtistsScreen(state=state, request_screen=request_screen, jellyfin=jellyfin, download_manager=download_manager)
+    elif name == "jellyfin_albums":
+        from src.screens.jellyfin_albums import JellyfinAlbumsScreen as _JellyfinAlbumsScreen
+        return _JellyfinAlbumsScreen(state=state, request_screen=request_screen, jellyfin=jellyfin, download_manager=download_manager)
+    elif name == "jellyfin_songs":
+        from src.screens.jellyfin_songs import JellyfinSongsScreen as _JellyfinSongsScreen
+        return _JellyfinSongsScreen(state=state, request_screen=request_screen, jellyfin=jellyfin, download_manager=download_manager)
     else:
         raise ValueError(f"Unknown screen: {name}")
 

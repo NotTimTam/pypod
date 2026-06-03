@@ -1,3 +1,5 @@
+from functools import partial
+
 from src.utils.screen import Screen
 from src.utils.input import input_handler
 
@@ -8,7 +10,7 @@ from src.ui.control_icons import ControlIcons
 class JellyfinScreen(Screen):
     """Jellyfin screen with navigation menu."""
 
-    def __init__(self, state=None, request_screen=None, jellyfin=None):
+    def __init__(self, state=None, request_screen=None, jellyfin=None, download_manager=None):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
@@ -17,6 +19,7 @@ class JellyfinScreen(Screen):
         )
         self._request_screen = request_screen
         self._jellyfin = jellyfin
+        self._download_manager = download_manager
 
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"JELLYFIN")
@@ -29,16 +32,15 @@ class JellyfinScreen(Screen):
         })
         self._setup_menu()
 
-    def nullish(self):
-        print(".")
-
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Artists >", self.nullish)
-        self.menu.add_item("Albums >", self.nullish)
-        self.menu.add_item("Songs >", self.nullish)
+        self.menu.add_item("Artists >", partial(self._request_screen, "jellyfin_artists", {"menu": {"current_index": 0}}))
+        self.menu.add_item("Albums >", partial(self._request_screen, "jellyfin_albums", {"menu": {"current_index": 0}}))
         self.menu.add_item("Playlists >", self.nullish)
         self.menu.add_item("Genres >", self.nullish)
+
+    def nullish(self):
+        pass
 
     def handle_input(self):
         """Handle input."""
@@ -61,7 +63,7 @@ class JellyfinScreen(Screen):
         self.header.render(img, draw, font)
 
         # Render menu
-        self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
+        self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height, self._download_manager)
 
         # Render controls
         self.controls.render(img, draw)

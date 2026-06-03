@@ -228,7 +228,7 @@ class Jellyfin:
             "Recursive": "true",
             "IncludeItemTypes": "Audio",
             "ParentId": section_id,
-            "Fields": "Album,AlbumId,Artists,AlbumArtists,Genres,Path,MediaSources",
+            "Fields": "Album,AlbumId,Artists,AlbumArtists,Genres,Path,MediaSources,Duration",
             "Limit": 1000,
         }
         if album_id:
@@ -249,6 +249,7 @@ class Jellyfin:
                 "AlbumArtists": item.get("AlbumArtists", []),
                 "Genres": item.get("Genres", []),
                 "Path": item.get("Path"),
+                "Duration": item.get("Duration", 0),
             }
             for item in items
         ]

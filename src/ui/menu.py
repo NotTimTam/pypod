@@ -1,12 +1,6 @@
 import time
 from src.utils.input import input_handler
-
-class MenuItem:
-    """Represents a single menu item."""
-
-    def __init__(self, text, callback):
-        self.text = text
-        self.callback = callback
+from src.ui.menu_items import MenuItem, SongMenuItem, AlbumMenuItem
 
 
 class Menu:
@@ -45,7 +39,7 @@ class Menu:
         input_handler.handle_button("Y", self.move_down)
         input_handler.handle_button("A", self.select_current)
 
-    def render(self, img, draw, font, x, y, width, height):
+    def render(self, img, draw, font, x, y, width, height, download_manager=None):
         """
         Render menu at specified position.
 
@@ -55,6 +49,7 @@ class Menu:
             font: PIL ImageFont
             x, y: Top-left position for menu
             width, height: Available space for menu
+            download_manager: Optional DownloadManager for progress tracking
         """
         if not self.items:
             return
@@ -75,6 +70,11 @@ class Menu:
             # Center the current item if possible
             ideal_offset = max(0, (self.current_index * item_height) - (height // 2) + (item_height // 2))
             scroll_offset = min(ideal_offset, total_height - height)
+
+        # Get download state if manager provided
+        download_state = None
+        if download_manager:
+            download_state = download_manager.get_state()
 
         # Render each visible item
         for i, item in enumerate(self.items):
@@ -100,6 +100,14 @@ class Menu:
                 scroll_text = item_text[self.title_offset:] + "     " + item_text[:self.title_offset]
                 item_text = scroll_text[:len(item_text)]
 
+            # Draw progress bar background for SongMenuItems being downloaded
+            if isinstance(item, SongMenuItem) and download_state and download_state["current_download_id"] == item.song_id and download_state["current_status"] == "downloading":
+                progress_width = int((width * download_state["current_progress"]) / 100)
+                draw.rectangle(
+                    (x, item_y, x + progress_width, item_y + item_height),
+                    fill=(0, 255, 0)
+                )
+
             # Draw background for selected item
             if is_selected:
                 draw.rectangle(
@@ -113,6 +121,24 @@ class Menu:
             # Draw text
             text_x = x + 4
             draw.text((text_x, item_y), item_text, fill=text_color, font=font)
+
+            # Draw duration and status for SongMenuItems
+            if isinstance(item, SongMenuItem):
+                duration_text = f"{item.duration_sec // 60}:{item.duration_sec % 60:02d}"
+                duration_bbox = draw.textbbox((0, 0), duration_text, font=font)
+                duration_width = duration_bbox[2] - duration_bbox[0]
+
+                # Draw duration
+                duration_x = x + width - duration_width - 4
+                draw.text((duration_x, item_y), duration_text, fill=text_color, font=font)
+
+                # Draw checkmark if downloaded
+                if item.downloaded:
+                    checkmark = "✓"
+                    checkmark_bbox = draw.textbbox((0, 0), checkmark, font=font)
+                    checkmark_width = checkmark_bbox[2] - checkmark_bbox[0]
+                    checkmark_x = duration_x - checkmark_width - 8
+                    draw.text((checkmark_x, item_y), checkmark, fill=text_color, font=font)
 
     def get_state(self):
         """Return dict of menu state for persistence."""
