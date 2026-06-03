@@ -43,7 +43,7 @@ class JellyfinScreen(Screen):
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("home", {"menu": {"current_index": 3}}))
+        input_handler.handle_button("B", lambda: self._request_screen("home", {"menu": {"current_index": 2}}))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
