@@ -33,7 +33,6 @@ class MusicScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Shuffle Songs", self.nullish)
         self.menu.add_item("Playlists >", self.nullish)
         self.menu.add_item("Artists >", self.nullish)
         self.menu.add_item("Albums >", self.nullish)
