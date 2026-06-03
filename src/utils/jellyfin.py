@@ -106,16 +106,14 @@ class Jellyfin:
         self.download_root.mkdir(parents=True, exist_ok=True)
         return self.download_root
 
+    def _album_art_path(self, album_folder):
+        return album_folder / "folder.jpg"
+
     def get_artists(self):
         """
         Get all music artists from the music library.
         
-        CRITICAL FIX from original code:
-        - Original used: /Users/{userId}/Items with IncludeItemTypes=MusicArtist (400 Bad Request)
-        - Correct endpoint: /Artists (dedicated artists endpoint)
-        
-        This is the proper way to get artists per Jellyfin API.
-        Reference: Issue #16284 shows /Artists endpoint usage
+        Uses: GET /Artists (dedicated artists endpoint)
         """
         params = {
             "Limit": 1000,
@@ -136,12 +134,7 @@ class Jellyfin:
         """
         Get all music albums, optionally filtered by artist.
         
-        CRITICAL FIX for 404 error on artist albums:
-        - The endpoint /Artists/{id}/Albums does NOT exist in Jellyfin (causes 404)
-        - Correct approach: use /Items endpoint with ArtistIds parameter filter
-        - This works with API key authentication (no user context needed)
-        
-        Reference: Jellyfin API uses filtering parameters, not nested endpoints for this
+        Uses: GET /Items with ArtistIds filter
         """
         params = {
             "Recursive": "true",
@@ -150,7 +143,6 @@ class Jellyfin:
         }
         
         if artist_id:
-            # Filter by artist ID - this is the correct pattern for Jellyfin
             params["ArtistIds"] = artist_id
         
         data = self._request("Items", params=params)
@@ -241,53 +233,6 @@ class Jellyfin:
             for item in playlist_items
         ]
 
-    def download_playlist(self, playlist_id, download_root=None):
-        """Download all songs in a playlist."""
-        download_root = Path(download_root) if download_root is not None else self.download_root
-        if download_root is None:
-            raise JellyfinError("download_playlist requires a download_root or Jellyfin(download_root=...) to be configured.")
-
-        download_root.mkdir(parents=True, exist_ok=True)
-        playlist_root = download_root / "playlists"
-        playlist_root.mkdir(parents=True, exist_ok=True)
-
-        playlist = self._request(f"Playlists/{quote(playlist_id)}", params={"Fields": "Name,ItemCount"})
-        playlist_name = playlist.get("Name") or playlist_id
-        playlist_items = self.get_playlist_items(playlist_id)
-
-        downloaded_items = []
-        for item in playlist_items:
-            result = self.download_song(item["Id"], download_root=download_root)
-            downloaded_items.append({
-                "Id": item["Id"],
-                "Name": item["Name"],
-                "Artist": result["artist"],
-                "Album": result["album"],
-                "Path": result["path"],
-                "AlbumArt": result["album_art"],
-            })
-
-        playlist_file = playlist_root / f"{self._sanitize_path_component(playlist_name)}.json"
-        with open(playlist_file, "w", encoding="utf-8") as out_file:
-            json.dump(
-                {
-                    "Id": playlist_id,
-                    "Name": playlist_name,
-                    "ItemCount": playlist.get("ItemCount", len(downloaded_items)),
-                    "Items": downloaded_items,
-                },
-                out_file,
-                indent=2,
-                ensure_ascii=False,
-            )
-
-        return {
-            "playlist_id": playlist_id,
-            "name": playlist_name,
-            "playlist_file": str(playlist_file),
-            "items": downloaded_items,
-        }
-
     def get_songs(self, album_id=None, artist_id=None, genre_id=None):
         """
         Get all songs, optionally filtered by album, artist, or genre.
@@ -329,81 +274,25 @@ class Jellyfin:
             params["Fields"] = ",".join(fields)
         return self._request(f"Items/{quote(item_id)}", params=params)
 
-    def _download_stream(self, path, dest_path):
-        with self.session.get(self._build_url(path), stream=True, timeout=60) as resp:
+    def get_item_stream(self, item_id):
+        """Get a streaming response for downloading an item."""
+        resp = self._request(f"Items/{quote(item_id)}/Download?Static=true", stream=True)
+        if resp.status_code >= 400:
+            raise JellyfinError(f"Failed to get download stream ({resp.status_code})")
+        return resp
+
+    def download_album_art(self, album_id, dest_path):
+        """Download album art for an album. Returns True if successful."""
+        try:
+            resp = self._request(f"Items/{quote(album_id)}/Images/Primary", stream=True)
             if resp.status_code >= 400:
-                raise JellyfinError(
-                    f"Failed downloading item stream ({resp.status_code}): {resp.text}"
-                )
+                return False
+            
             dest_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest_path, "wb") as out_file:
+            with open(dest_path, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=8192):
                     if chunk:
-                        out_file.write(chunk)
-        return dest_path
-
-    def _album_art_path(self, album_folder):
-        return album_folder / "folder.jpg"
-
-    def _download_album_art(self, album_id, album_folder):
-        art_path = self._album_art_path(album_folder)
-        if art_path.exists():
-            return art_path
-
-        try:
-            self._download_stream(f"Items/{quote(album_id)}/Images/Primary", art_path)
-        except JellyfinError:
-            return None
-        return art_path
-
-    def download_song(self, item_id, download_root=None):
-        download_root = Path(download_root) if download_root is not None else self.download_root
-        if download_root is None:
-            raise JellyfinError("download_song requires a download_root or Jellyfin(download_root=...) to be configured.")
-
-        download_root.mkdir(parents=True, exist_ok=True)
-        item = self.get_item(item_id, fields=["Album", "AlbumId", "Artists", "AlbumArtists", "Path", "MediaSources"])
-
-        album = self._sanitize_path_component(item.get("Album") or "Unknown Album")
-        artists = item.get("Artists") or item.get("AlbumArtists") or ["Unknown Artist"]
-        artist = self._sanitize_path_component(artists[0])
-
-        album_folder = download_root / artist / album
-        album_folder.mkdir(parents=True, exist_ok=True)
-
-        filename = None
-        media_sources = item.get("MediaSources") or []
-        if media_sources and isinstance(media_sources, list):
-            container = media_sources[0].get("Container")
-            if container:
-                filename = f"{self._sanitize_path_component(item.get('Name') or item_id)}.{container.lower()}"
-
-        if not filename:
-            filename = f"{self._sanitize_path_component(item.get('Name') or item_id)}.mp3"
-
-        target_path = album_folder / filename
-        download_path = f"Items/{quote(item_id)}/Download?Static=true"
-        self._download_stream(download_path, target_path)
-
-        album_id = item.get("AlbumId")
-        if album_id:
-            self._download_album_art(album_id, album_folder)
-        else:
-            try:
-                self._download_stream(f"Items/{quote(item_id)}/Images/Primary", self._album_art_path(album_folder))
-            except JellyfinError:
-                pass
-
-        return {
-            "artist": artist,
-            "album": album,
-            "song": target_path.name,
-            "path": str(target_path),
-            "album_art": str(self._album_art_path(album_folder)) if self._album_art_path(album_folder).exists() else None,
-        }
-
-    def download_songs(self, item_ids, download_root=None):
-        results = []
-        for item_id in item_ids:
-            results.append(self.download_song(item_id, download_root=download_root))
-        return results
+                        f.write(chunk)
+            return True
+        except Exception:
+            return False
