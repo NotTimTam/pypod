@@ -27,6 +27,7 @@ class SongScreen(Screen):
             self._return_screen = state.get("return_screen")
             self._from_artist = state.get("from_artist", False)
             self._artist = state.get('artist')
+            self._album = state.get('album')
 
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"{state.get('album', 'SONGS') if state else 'SONGS'}")
