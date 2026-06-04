@@ -28,7 +28,7 @@ class SongScreen(Screen):
             self._artist_index = state.get("artist_index")
             self._album_index = state.get("album_index")
             self._return_index = state.get("return_index", 0)
-            self._return_screen = state.get("from")
+            self._return_screen = state.get("return_screen")
             self._from_artist = state.get("from_artist", False)
             self._artist = state.get('artist')
             self._album = state.get('album')
