@@ -75,15 +75,14 @@ class SongScreen(Screen):
         # FIX: Pass complete state needed for the return screen
         def go_back():
             return_state = {
-                "menu": {"current_index": self._album_index},
-                # Always pass artist/album context back
-                "artist": self._artist,
-                "artist_index": self._artist_index,
-                "album_index": self._album_index,
+                "menu": {"current_index": self._album_index if self._return_screen == "albums" else self._return_index},
             }
-            # Include album only if returning to albums from albums view
-            if self._album:
-                return_state["album"] = self._album
+            
+            # If returning to albums, pass context about how we got there
+            if self._return_screen == "albums":
+                return_state["artist"] = self._artist  # Always include artist name (or None)
+                return_state["artist_index"] = self._artist_index
+                return_state["from_artist"] = self._from_artist  # Critical: tells albums if header should show artist or "ALBUMS"
             
             self._request_screen(self._return_screen, return_state)
         

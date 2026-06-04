@@ -50,6 +50,7 @@ class ArtistScreen(Screen):
                     {
                         "artist_index": index,
                         "artist": artist_folder.name,
+                        "from_artist": True,
                         "return_index": 2,  # Artists is at index 2 in music menu
                     }
                 )

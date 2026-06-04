@@ -7,6 +7,7 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
+
 class MusicScreen(Screen):
     """Music screen with navigation menu."""
 
@@ -17,10 +18,11 @@ class MusicScreen(Screen):
             padding_left=32,
             padding_right=32
         )
+
         self._request_screen = request_screen
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"MUSIC")
+        self.header = Header(title="MUSIC")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -35,11 +37,18 @@ class MusicScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
+        # Menu indices for reference:
+        # 0: Shuffle Songs
+        # 1: Playlists
+        # 2: Artists
+        # 3: Albums
+        # 4: Songs
+        
         self.menu.add_item("Shuffle Songs", self.nullish)
         self.menu.add_item("Playlists >", self.nullish)
-        self.menu.add_item("Artists >", partial(self._request_screen, "artists", {}))
-        self.menu.add_item("Albums >", partial(self._request_screen, "albums", { "return_index": 3, }))
-        self.menu.add_item("Songs >", partial(self._request_screen, "songs", { "return_index": 4, "return_screen": "music", }))
+        self.menu.add_item("Artists >", partial(self._request_screen, "artists", {"return_index": 2}))
+        self.menu.add_item("Albums >", partial(self._request_screen, "albums", {"return_index": 3, "from_artist": False}))
+        self.menu.add_item("Songs >", partial(self._request_screen, "songs", {"return_index": 4, "return_screen": "music"}))
         # self.menu.add_item("Podcasts >", self.nullish)
         # self.menu.add_item("Genres >", self.nullish)
         # self.menu.add_item("Audiobooks >", self.nullish)

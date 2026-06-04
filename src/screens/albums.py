@@ -25,21 +25,24 @@ class AlbumScreen(Screen):
 
         # Initialize attributes
         self._artist_index = 0
-        self._return_index = 0
+        self._return_index = 3  # Default to albums position in music menu
         self._return_screen = "music"
         self._artist = None
+        self._from_artist = False  # Track if we're in artist-specific view
 
         if state:
             self._artist_index = state.get("artist_index", 0)
-            self._return_index = state.get("return_index", 3)  # Default to albums position in music menu
+            self._return_index = state.get("return_index", 3)
             self._artist = state.get('artist')
-            # If we have an artist, we came from artists screen; otherwise from music
-            self._return_screen = "artists" if self._artist else "music"
+            self._from_artist = state.get('from_artist', False)
+            # If we came from artist view, return to artists; otherwise return to music
+            self._return_screen = "artists" if self._from_artist else "music"
 
         menu_state = state.get("menu", {}) if state else {}
         
-        # FIX: Determine header based on whether we're viewing artist albums or all albums
-        header_title = self._artist if self._artist else "ALBUMS"
+        # FIX: Header shows artist name ONLY if we're in artist-specific view
+        # If we're viewing all albums from music, show "ALBUMS" regardless of current selection
+        header_title = self._artist if self._from_artist else "ALBUMS"
         self.header = Header(title=header_title)
         
         self.menu = Menu(state=menu_state)
@@ -56,7 +59,7 @@ class AlbumScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        if self._artist:
+        if self._from_artist:
             # Viewing albums for a specific artist
             artist_folder = self._music_dir / self._artist
 
@@ -81,7 +84,7 @@ class AlbumScreen(Screen):
                     )
                 )
         else:
-            # Viewing all albums across all artists
+            # Viewing all albums across all artists (from music)
             index = 0
             for artist_folder in self._music_dir.iterdir():
                 if not artist_folder.is_dir():
@@ -115,14 +118,12 @@ class AlbumScreen(Screen):
         
         def go_back():
             return_state = {
-                "menu": {"current_index": self._artist_index if self._return_screen == "artists" else self._return_index}
+                "menu": {"current_index": self._artist_index if self._from_artist else self._return_index}
             }
-            # If we're going back to artists, pass the artist info
-            if self._return_screen == "artists":
+            # Always preserve the from_artist flag and artist info when returning to artist screen
+            if self._from_artist:
+                return_state["from_artist"] = True
                 return_state["artist_index"] = self._artist_index
-            # If returning from artists view, keep artist context
-            if self._artist:
-                return_state["artist"] = self._artist
             
             self._request_screen(self._return_screen, return_state)
         
