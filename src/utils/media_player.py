@@ -9,6 +9,7 @@ from enum import Enum
 from dataclasses import dataclass
 from collections import deque
 from threading import Thread
+import threading
 
 class PlayerStatus(Enum):
     """Player status enumeration"""
@@ -208,9 +209,45 @@ class MediaPlayer:
         if self._monitor_thread:
             self._monitor_thread.join(timeout=1)
 
+    def _stream_file_to_ffplay(self, file_path: str):
+        """
+        Background thread: reads file and streams to ffplay in chunks.
+        Prevents blocking the main thread.
+        
+        Args:
+            file_path: Full path to audio file
+        """
+        chunk_size = 64 * 1024  # 64KB chunks
+        
+        try:
+            with open(file_path, 'rb') as audio_file:
+                while not self._stop_monitor and self.process:
+                    chunk = audio_file.read(chunk_size)
+                    if not chunk:
+                        break  # EOF reached
+                    
+                    try:
+                        self.process.stdin.write(chunk)
+                        self.process.stdin.flush()
+                    except BrokenPipeError:
+                        # ffplay died
+                        print("[ffplay] pipe broken during streaming")
+                        break
+                    except Exception as e:
+                        print(f"Error writing to ffplay: {e}")
+                        break
+        
+        except FileNotFoundError:
+            print(f"Audio file not found: {file_path}")
+            self._set_status(PlayerStatus.STOPPED)
+        except Exception as e:
+            print(f"Error streaming file: {e}")
+            self._set_status(PlayerStatus.STOPPED)
+    
     def _play_file(self, file_path: str):
         """
-        Stream audio file to persistent ffplay via stdin.
+        Stream audio file to persistent ffplay via stdin (non-blocking).
+        Spawns a background thread to handle I/O.
         
         Args:
             file_path: Full path to audio file
@@ -223,36 +260,17 @@ class MediaPlayer:
         if not self.process or self.process.poll() is not None:
             self._init_ffplay_daemon()
         
-        try:
-            # Read file and stream to ffplay stdin
-            with open(file_path, 'rb') as audio_file:
-                audio_data = audio_file.read()
-            
-            # Write to ffplay's stdin
-            self.process.stdin.write(audio_data)
-            self.process.stdin.flush()
-            
-            self._set_status(PlayerStatus.PLAYING)
-            self._start_monitor()
-            
-        except BrokenPipeError:
-            # ffplay crashed, restart and retry
-            print("[ffplay] broken pipe, restarting daemon...")
-            self._restart_ffplay_daemon()
-            # Retry once
-            try:
-                with open(file_path, 'rb') as audio_file:
-                    audio_data = audio_file.read()
-                self.process.stdin.write(audio_data)
-                self.process.stdin.flush()
-                self._set_status(PlayerStatus.PLAYING)
-                self._start_monitor()
-            except Exception as e:
-                print(f"Error retrying playback: {e}")
-                self._set_status(PlayerStatus.STOPPED)
-        except Exception as e:
-            print(f"Error streaming file: {e}")
-            self._set_status(PlayerStatus.STOPPED)
+        # Start playback status immediately (non-blocking)
+        self._set_status(PlayerStatus.PLAYING)
+        self._start_monitor()
+        
+        # Stream file in background thread
+        stream_thread = Thread(
+            target=self._stream_file_to_ffplay,
+            args=(file_path,),
+            daemon=True
+        )
+        stream_thread.start()
     
     def play_song(self, song: SongItem):
         """
