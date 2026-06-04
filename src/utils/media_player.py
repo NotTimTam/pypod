@@ -9,9 +9,6 @@ from enum import Enum
 from dataclasses import dataclass
 from collections import deque
 from threading import Thread
-import threading
-import subprocess
-import os
 
 class PlayerStatus(Enum):
     """Player status enumeration"""
@@ -42,19 +39,23 @@ class SongItem:
 
 class MediaPlayer:
     """
-    Lightweight media player for Pi Zero using ffplay subprocess.
+    Lightweight media player for Pi Zero using persistent ffplay via stdin.
     Supports MP3, FLAC, WAV, OGG, M4A, and other common audio formats.
+    
+    Optimized for Pi Zero: keeps ffplay running and feeds it audio via stdin
+    for instant song switching without subprocess startup overhead.
     
     Directory structure expected:
         /music_dir/artist/album/song.ext
     """
     
-    def __init__(self, music_dir: Optional[str] = None):
+    def __init__(self, music_dir: Optional[str] = None, prewarm: bool = True):
         """
         Initialize the media player.
         
         Args:
             music_dir: Optional path to music directory
+            prewarm: If True, start ffplay daemon immediately (default True)
         """
         self.music_dir = music_dir
         
@@ -66,7 +67,7 @@ class MediaPlayer:
         self.current_index = -1
         self.current_song: Optional[SongItem] = None
         
-        # Playback process
+        # Playback process (persistent ffplay)
         self.process: Optional[subprocess.Popen] = None
         self._status = PlayerStatus.STOPPED
         
@@ -85,6 +86,10 @@ class MediaPlayer:
         # Monitor thread for detecting song end
         self._monitor_thread: Optional[Thread] = None
         self._stop_monitor = False
+        
+        # Initialize persistent ffplay if requested
+        if prewarm:
+            self._init_ffplay_daemon()
     
     def _check_ffplay_available(self):
         if shutil.which("ffplay") is None:
@@ -92,6 +97,53 @@ class MediaPlayer:
                 "ffplay not found. Install ffmpeg:\n"
                 "  sudo apt-get install ffmpeg"
             )
+    
+    def _init_ffplay_daemon(self):
+        """
+        Start persistent ffplay daemon reading from stdin.
+        This is called once during init (or on demand) and stays running.
+        """
+        # Don't restart if already running
+        if self.process and self.process.poll() is None:
+            return
+        
+        try:
+            cmd = [
+                'ffplay',
+                '-nodisp',                  # No video window
+                '-autoexit',                # Exit when input stream ends
+                '-hide_banner',             # Suppress banner
+                '-loglevel', 'quiet',       # Minimal logging
+                '-volume', str(self._volume),
+                '-'                         # Read from stdin
+            ]
+            
+            self.process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=0  # Unbuffered for responsiveness
+            )
+            
+            print(f"[ffplay] daemon initialized (PID: {self.process.pid})")
+            
+        except Exception as e:
+            print(f"Error initializing ffplay daemon: {e}")
+            self.process = None
+    
+    def _restart_ffplay_daemon(self):
+        """Restart ffplay daemon if it has crashed"""
+        try:
+            if self.process:
+                self.process.terminate()
+                self.process.wait(timeout=1)
+        except:
+            pass
+        finally:
+            self.process = None
+        
+        self._init_ffplay_daemon()
         
     def create_song_item(self, song, album, artist):
         return SongItem(song, album, artist, self.music_dir + "/" + artist + "/" + album + "/" + song)
@@ -133,12 +185,14 @@ class MediaPlayer:
         """Monitor ffplay process and detect when song ends"""
         while not self._stop_monitor and self.process:
             if self.process.poll() is not None:
-                # Process ended
+                # Process ended (song finished)
                 if self._status == PlayerStatus.PLAYING:
                     self._trigger_callbacks('song_finished')
                     # Auto-play next if available
                     if len(self.queue) > self.current_index + 1:
                         self.next()
+                    else:
+                        self._set_status(PlayerStatus.STOPPED)
                 break
             time.sleep(0.5)
     
@@ -156,7 +210,7 @@ class MediaPlayer:
 
     def _play_file(self, file_path: str):
         """
-        Play a file using ffplay.
+        Stream audio file to persistent ffplay via stdin.
         
         Args:
             file_path: Full path to audio file
@@ -165,42 +219,39 @@ class MediaPlayer:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
         
-        # Stop current playback
-        self.stop()
+        # Ensure ffplay daemon is running
+        if not self.process or self.process.poll() is not None:
+            self._init_ffplay_daemon()
         
         try:
-            # Build ffplay command
-            # -nodisp: Don't show video window
-            # -autoexit: Exit when done
-            # -volume: Set volume (0-100)
-            # -hide_banner: Hide ffplay banner
-            cmd = [
-                'ffplay',
-                '-nodisp',
-                '-autoexit',
-                '-hide_banner',
-                '-loglevel', 'quiet',
-                '-volume', str(self._volume),
-                file_path
-            ]
+            # Read file and stream to ffplay stdin
+            with open(file_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
             
-            self.process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1
-            )
-
-            time.sleep(0.05)
-            if self.process.poll() is not None:
-                raise RuntimeError(f"ffplay exited immediately with code {self.process.returncode}")
+            # Write to ffplay's stdin
+            self.process.stdin.write(audio_data)
+            self.process.stdin.flush()
             
             self._set_status(PlayerStatus.PLAYING)
             self._start_monitor()
             
+        except BrokenPipeError:
+            # ffplay crashed, restart and retry
+            print("[ffplay] broken pipe, restarting daemon...")
+            self._restart_ffplay_daemon()
+            # Retry once
+            try:
+                with open(file_path, 'rb') as audio_file:
+                    audio_data = audio_file.read()
+                self.process.stdin.write(audio_data)
+                self.process.stdin.flush()
+                self._set_status(PlayerStatus.PLAYING)
+                self._start_monitor()
+            except Exception as e:
+                print(f"Error retrying playback: {e}")
+                self._set_status(PlayerStatus.STOPPED)
         except Exception as e:
-            print(f"Error starting playback: {e}")
+            print(f"Error streaming file: {e}")
             self._set_status(PlayerStatus.STOPPED)
     
     def play_song(self, song: SongItem):
@@ -215,7 +266,7 @@ class MediaPlayer:
         self.current_song = song
         self.current_index = 0
 
-        print("Playing", song.path)
+        print(f"Playing: {song.artist} - {song.name}")
 
         self._trigger_callbacks('queue_changed')
         self._trigger_callbacks('song_start')
@@ -408,11 +459,9 @@ class MediaPlayer:
         """
         self._volume = max(0, min(100, volume))
         
-        # Update running process if playing
-        if self.process and self._status == PlayerStatus.PLAYING:
-            # Note: ffplay doesn't support live volume change via stdin
-            # You would need to restart playback or use a different approach
-            pass
+        # Note: ffplay doesn't support live volume change via stdin.
+        # Volume changes take effect on the next song played.
+        # For live volume control, would need to restart ffplay or use a different backend.
     
     def get_volume(self) -> int:
         """Get current volume"""
