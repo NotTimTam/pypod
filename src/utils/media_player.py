@@ -154,6 +154,7 @@ class MediaPlayer:
         This is the single "producer" for ffplay's stdin.
         """
         chunk_size = 64 * 1024
+        error_count = 0
         
         while not self._stop_streaming:
             try:
@@ -176,19 +177,34 @@ class MediaPlayer:
                     try:
                         self.process.stdin.write(chunk)
                         self.process.stdin.flush()
+                        error_count = 0  # Reset error counter on success
                     except BrokenPipeError:
-                        print("[stream] ffplay pipe broken, restarting...")
-                        self._init_ffplay_daemon()
+                        error_count += 1
+                        if error_count < 3:  # Only restart a few times before giving up
+                            print("[stream] ffplay pipe broken, restarting...")
+                            self._init_ffplay_daemon()
+                        else:
+                            print("[stream] too many pipe errors, stopping")
+                            break
                     except Exception as e:
                         print(f"[stream] write error: {e}")
+                        break
                 else:
-                    # ffplay died, restart
-                    print("[stream] ffplay died, restarting...")
-                    self._init_ffplay_daemon()
+                    # ffplay died, only restart if we haven't had too many errors
+                    if error_count < 3:
+                        print("[stream] ffplay died, restarting...")
+                        self._init_ffplay_daemon()
+                        error_count += 1
+                    else:
+                        print("[stream] ffplay restart limit exceeded")
+                        break
             
             except Exception as e:
                 print(f"[stream] error: {e}")
                 time.sleep(0.1)
+                error_count += 1
+                if error_count > 5:
+                    break
     
     def _load_file_to_buffer(self, file_path: str):
         """
@@ -314,8 +330,18 @@ class MediaPlayer:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
         
-        # Load file into buffer (this will clear old stream)
+        # CRITICAL: Stop streaming thread before clearing buffer to prevent race conditions
+        # This ensures the streaming thread isn't mid-write when we swap songs
+        self._stop_streaming = True
+        if self._stream_thread and self._stream_thread.is_alive():
+            self._stream_thread.join(timeout=0.2)
+        
+        # Now safe to clear and reload buffer
         self._load_file_to_buffer(file_path)
+        
+        # Restart streaming thread for new song
+        self._stop_streaming = False
+        self._start_stream_thread()
         
         # Set status and start monitoring
         self._set_status(PlayerStatus.PLAYING)
