@@ -23,6 +23,8 @@ class AlbumScreen(Screen):
         self._return_index = state.get("return_index", 0) if state else 0
         self._return_screen = "artists" if (state.get("artist") if state else None) else "music"
 
+        self._artist = state.get('artist') if state else None
+
         menu_state = state.get("menu", {}) if state else {}
         self.header = Header(title=f"{state.get('artist', 'ALBUMS') if state else 'ALBUMS'}")
         self.menu = Menu(state=menu_state)
@@ -41,10 +43,27 @@ class AlbumScreen(Screen):
         """Define menu items and their callbacks."""
         self.menu.add_item('w.i.p.', self.nullish)
 
-        # for artist_folder in self._music_dir.iterdir():
-        #     if not artist_folder.is_dir():
-        #         continue
-        #     else: self.menu.add_item(artist_folder.name, self.nullish)
+        if self._artist:
+            artist_folder = self._music_dir / self._artist
+
+            if not artist_folder.is_dir():
+                return self._request_screen(self._return_screen, {"menu": {"current_index": self._return_index}})
+
+            for album_folder in artist_folder.iterdir():
+                if not album_folder.is_dir():
+                    continue
+                # Add menu item for each album
+                self.menu.add_item(album_folder.name, self.nullish)
+        else:
+            for artist_folder in self._music_dir.iterdir():
+                if not artist_folder.is_dir():
+                    continue
+                for album_folder in artist_folder.iterdir():
+                    if not album_folder.is_dir():
+                        continue
+                    # Add menu item for each album
+                    self.menu.add_item(album_folder.name, self.nullish)
+            return False
 
     def handle_input(self):
         """Handle input."""
