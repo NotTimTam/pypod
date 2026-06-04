@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 
 from src.utils.screen import Screen
@@ -41,20 +42,19 @@ class AlbumScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item('w.i.p.', self.nullish)
-
         if self._artist:
             artist_folder = self._music_dir / self._artist
 
             if not artist_folder.is_dir():
                 return self._request_screen(self._return_screen, {"menu": {"current_index": self._return_index}})
 
-            for album_folder in artist_folder.iterdir():
+            for index, album_folder in enumerate(artist_folder.iterdir()):
                 if not album_folder.is_dir():
                     continue
                 # Add menu item for each album
-                self.menu.add_item(album_folder.name, self.nullish)
+                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "artist": self._artist, "from": self._return_screen }))
         else:
+            index = 0
             for artist_folder in self._music_dir.iterdir():
                 if not artist_folder.is_dir():
                     continue
@@ -62,8 +62,8 @@ class AlbumScreen(Screen):
                     if not album_folder.is_dir():
                         continue
                     # Add menu item for each album
-                    self.menu.add_item(album_folder.name, self.nullish)
-            return False
+                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "from": self._return_screen  }))
+                    index += 1
 
     def handle_input(self):
         """Handle input."""
