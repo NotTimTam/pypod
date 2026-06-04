@@ -78,7 +78,7 @@ class JellyfinSongsScreen(Screen):
         for song in self.songs:
             duration = song.get("Duration", 0) // 10000000 if song.get("Duration") else 0  # Jellyfin uses ticks
             song_id = song.get("Id")
-            downloaded = self._is_song_downloaded(song_id)
+            downloaded = self._is_song_downloaded(song.get("Name"))
 
             callback = partial(self._on_song_selected, song_id, song.get("Name"))
             song_item = SongMenuItem(
@@ -90,7 +90,7 @@ class JellyfinSongsScreen(Screen):
             )
             self.menu.items.append(song_item)
 
-    def _is_song_downloaded(self, song_id):
+    def _is_song_downloaded(self, song_name):
         """Check if a song is already downloaded."""
         if not self._jellyfin or not self._jellyfin.download_root:
             return False
@@ -104,7 +104,7 @@ class JellyfinSongsScreen(Screen):
                     continue
                 # Check if any file with similar name exists
                 for file in album_folder.glob("*"):
-                    if file.is_file() and not file.name.endswith(".jpg"):
+                    if file.is_file() and Path(file.name).stem == song_name:
                         # Very basic check - in production would verify exact song
                         return True
         return False
