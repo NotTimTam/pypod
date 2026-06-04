@@ -1,7 +1,6 @@
 python-dotenv
 mutagen
 pillow
-python-vlc
 st7789
 lgpio
 gpiozero

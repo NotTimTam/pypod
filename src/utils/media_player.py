@@ -1,11 +1,13 @@
-import vlc
+import subprocess
+import time
 import os
 import random
 from pathlib import Path
-from typing import List, Optional, Callable, Dict, Any
+from typing import List, Optional, Callable, Dict
 from enum import Enum
 from dataclasses import dataclass
 from collections import deque
+from threading import Thread
 
 
 class PlayerStatus(Enum):
@@ -37,24 +39,11 @@ class SongItem:
 
 class MediaPlayer:
     """
-    A VLC-based media player with queue management, shuffle support, and event callbacks.
+    Lightweight media player for Pi Zero using ffplay subprocess.
+    Supports MP3, FLAC, WAV, OGG, M4A, and other common audio formats.
     
     Directory structure expected:
         /music_dir/artist/album/song.ext
-    
-    Usage:
-        player = MediaPlayer(music_dir="/path/to/music")
-        
-        # Set up callbacks
-        player.on_song_start(lambda song: print(f"Playing {song.name}"))
-        player.on_song_finished(lambda: player.next())
-        
-        # Queue and play
-        song = SongItem("Track 1", "Album", "Artist", "/path/to/song.mp3")
-        player.play_song(song)
-        player.pause()
-        player.resume()
-        player.next()
     """
     
     def __init__(self, music_dir: Optional[str] = None):
@@ -65,19 +54,24 @@ class MediaPlayer:
             music_dir: Optional path to music directory
         """
         self.music_dir = music_dir
-        self.instance = vlc.Instance()
-        self.player = self.instance.media_list_player_new()
+        
+        # Check if ffplay is available
+        self._check_ffplay_available()
         
         # Queue management
         self.queue: deque = deque()
         self.current_index = -1
         self.current_song: Optional[SongItem] = None
         
-        # Status tracking
+        # Playback process
+        self.process: Optional[subprocess.Popen] = None
         self._status = PlayerStatus.STOPPED
-        self._saved_volume = 50  # For mute/unmute
         
-        # Event callbacks - dict of event_name -> list of callbacks
+        # Volume (0-100)
+        self._volume = 80
+        self._saved_volume = 80
+        
+        # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
             'song_start': [],
             'song_finished': [],
@@ -85,86 +79,38 @@ class MediaPlayer:
             'status_changed': [],
         }
         
-        # Setup media list player callbacks
-        self._setup_callbacks()
+        # Monitor thread for detecting song end
+        self._monitor_thread: Optional[Thread] = None
+        self._stop_monitor = False
     
-    def _setup_callbacks(self):
-        """Setup VLC event callbacks for song transitions"""
-        events = self.player.get_media_list().get_media().event_manager()
-        # Note: We'll handle transitions via end-of-media event on the media player
-        media_player = self.player.get_media_player()
-        if media_player:
-            event_manager = media_player.event_manager()
-            event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self._on_media_end)
-            event_manager.event_attach(vlc.EventType.MediaPlayerMediaChanged, self._on_media_changed)
-    
-    def _on_media_end(self, event):
-        """Called when a media item ends"""
-        self._trigger_callbacks('song_finished')
-    
-    def _on_media_changed(self, event):
-        """Called when media changes"""
-        # Update current song based on player state
-        if self.player.is_playing():
-            self._update_current_song()
-            self._trigger_callbacks('song_start')
-    
-    def _update_current_song(self):
-        """Update current_song and current_index based on player state"""
-        if len(self.queue) == 0:
-            self.current_song = None
-            self.current_index = -1
-            return
-        
-        # The media list player handles cycling through the queue
-        # We track which song is current based on the media list position
-        media_list = self.player.get_media_list()
-        if media_list and media_list.count() > 0:
-            # Get current position - this is a bit tricky with VLC
-            # We'll use the queue to track position
-            for i, song in enumerate(self.queue):
-                # Match against current media (simplified approach)
-                # In practice, you might store a reference or use a unique ID
-                pass
+    def _check_ffplay_available(self):
+        """Check if ffplay is available on the system"""
+        try:
+            subprocess.run(['ffplay', '-version'], capture_output=True, timeout=2)
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            raise RuntimeError(
+                "ffplay not found. Install ffmpeg:\n"
+                "  sudo apt-get install ffmpeg\n"
+            )
     
     def on_song_start(self, callback: Callable[[SongItem], None]):
-        """
-        Register a callback for when a song starts playing.
-        
-        Args:
-            callback: Function to call with (song: SongItem)
-        """
+        """Register callback for when a song starts"""
         self._callbacks['song_start'].append(callback)
     
     def on_song_finished(self, callback: Callable[[], None]):
-        """
-        Register a callback for when a song finishes.
-        
-        Args:
-            callback: Function to call with no arguments
-        """
+        """Register callback for when a song finishes"""
         self._callbacks['song_finished'].append(callback)
     
     def on_queue_changed(self, callback: Callable[[List[SongItem]], None]):
-        """
-        Register a callback for when the queue changes.
-        
-        Args:
-            callback: Function to call with (queue: List[SongItem])
-        """
+        """Register callback for when queue changes"""
         self._callbacks['queue_changed'].append(callback)
     
     def on_status_changed(self, callback: Callable[[PlayerStatus], None]):
-        """
-        Register a callback for when player status changes.
-        
-        Args:
-            callback: Function to call with (status: PlayerStatus)
-        """
+        """Register callback for when status changes"""
         self._callbacks['status_changed'].append(callback)
     
-    def _trigger_callbacks(self, event_name: str, *args, **kwargs):
-        """Trigger all callbacks for a given event"""
+    def _trigger_callbacks(self, event_name: str):
+        """Trigger all callbacks for an event"""
         if event_name not in self._callbacks:
             return
         for callback in self._callbacks[event_name]:
@@ -178,21 +124,75 @@ class MediaPlayer:
                 else:
                     callback()
             except Exception as e:
-                print(f"Error in callback {callback}: {e}")
+                print(f"Error in callback: {e}")
     
-    def _load_queue_to_vlc(self):
-        """Load the current queue into VLC's media list"""
-        media_list = self.instance.media_list_new()
+    def _monitor_playback(self):
+        """Monitor ffplay process and detect when song ends"""
+        while not self._stop_monitor and self.process:
+            if self.process.poll() is not None:
+                # Process ended
+                if self._status == PlayerStatus.PLAYING:
+                    self._trigger_callbacks('song_finished')
+                    # Auto-play next if available
+                    if len(self.queue) > self.current_index + 1:
+                        self.next()
+                break
+            time.sleep(0.5)
+    
+    def _start_monitor(self):
+        """Start monitoring thread"""
+        self._stop_monitor = False
+        self._monitor_thread = Thread(target=self._monitor_playback, daemon=True)
+        self._monitor_thread.start()
+    
+    def _stop_monitor_thread(self):
+        """Stop monitoring thread"""
+        self._stop_monitor = True
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=1)
+    
+    def _play_file(self, file_path: str):
+        """
+        Play a file using ffplay.
         
-        for song in self.queue:
-            # Ensure path is absolute
-            full_path = song.path if os.path.isabs(song.path) else os.path.join(self.music_dir or "", song.path)
+        Args:
+            file_path: Full path to audio file
+        """
+        # Make sure file exists
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Audio file not found: {file_path}")
+        
+        # Stop current playback
+        self.stop()
+        
+        try:
+            # Build ffplay command
+            # -nodisp: Don't show video window
+            # -autoexit: Exit when done
+            # -volume: Set volume (0-100)
+            # -hide_banner: Hide ffplay banner
+            cmd = [
+                'ffplay',
+                '-nodisp',
+                '-autoexit',
+                '-hide_banner',
+                '-loglevel', 'quiet',
+                '-volume', str(self._volume / 100.0),
+                file_path
+            ]
             
-            # Create media item with file:// URI
-            media = self.instance.media_new(f"file://{os.path.abspath(full_path)}")
-            media_list.add_media(media)
-        
-        self.player.set_media_list(media_list)
+            self.process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            
+            self._set_status(PlayerStatus.PLAYING)
+            self._start_monitor()
+            
+        except Exception as e:
+            print(f"Error starting playback: {e}")
+            self._set_status(PlayerStatus.STOPPED)
     
     def play_song(self, song: SongItem, shuffle: bool = False):
         """
@@ -200,38 +200,24 @@ class MediaPlayer:
         
         Args:
             song: SongItem to play
-            shuffle: Ignored for single song (included for API consistency)
+            shuffle: Ignored for single song
         """
         self.queue.clear()
         self.queue.append(song)
         self.current_song = song
         self.current_index = 0
         
-        self._load_queue_to_vlc()
-        self.player.play()
-        self._set_status(PlayerStatus.PLAYING)
         self._trigger_callbacks('queue_changed')
         self._trigger_callbacks('song_start')
+        self._play_file(song.path)
     
     def queue_song(self, song: SongItem):
-        """
-        Add a song to the end of the queue.
-        
-        Args:
-            song: SongItem to queue
-        """
+        """Add a song to the queue"""
         self.queue.append(song)
         self._trigger_callbacks('queue_changed')
     
     def queue_album(self, artist: str, album: str, shuffle: bool = False):
-        """
-        Add all songs from an album to the queue.
-        
-        Args:
-            artist: Artist name
-            album: Album name
-            shuffle: Whether to shuffle the songs
-        """
+        """Add all songs from an album to queue"""
         songs = self._get_album_songs(artist, album)
         if shuffle:
             random.shuffle(songs)
@@ -239,13 +225,7 @@ class MediaPlayer:
         self._trigger_callbacks('queue_changed')
     
     def queue_artist(self, artist: str, shuffle: bool = False):
-        """
-        Add all songs from an artist to the queue.
-        
-        Args:
-            artist: Artist name
-            shuffle: Whether to shuffle the songs
-        """
+        """Add all songs by an artist to queue"""
         songs = self._get_artist_songs(artist)
         if shuffle:
             random.shuffle(songs)
@@ -253,14 +233,9 @@ class MediaPlayer:
         self._trigger_callbacks('queue_changed')
     
     def queue_all_songs(self, shuffle: bool = False):
-        """
-        Add all songs to the queue.
-        
-        Args:
-            shuffle: Whether to shuffle the songs
-        """
+        """Add all songs in library to queue"""
         if not self.music_dir:
-            raise ValueError("music_dir must be set to use queue_all_songs")
+            raise ValueError("music_dir must be set")
         
         songs = self._scan_all_songs()
         if shuffle:
@@ -269,77 +244,78 @@ class MediaPlayer:
         self._trigger_callbacks('queue_changed')
     
     def play_album(self, artist: str, album: str, shuffle: bool = False):
-        """
-        Clear queue and play all songs from an album.
-        
-        Args:
-            artist: Artist name
-            album: Album name
-            shuffle: Whether to shuffle the songs
-        """
+        """Clear queue and play all songs from album"""
         self.queue.clear()
         self.queue_album(artist, album, shuffle=shuffle)
         
         if len(self.queue) > 0:
             self.current_song = self.queue[0]
             self.current_index = 0
-            self._load_queue_to_vlc()
-            self.player.play()
-            self._set_status(PlayerStatus.PLAYING)
+            self._trigger_callbacks('queue_changed')
             self._trigger_callbacks('song_start')
+            self._play_file(self.queue[0].path)
     
     def play_artist(self, artist: str, shuffle: bool = False):
-        """
-        Clear queue and play all songs from an artist.
-        
-        Args:
-            artist: Artist name
-            shuffle: Whether to shuffle the songs
-        """
+        """Clear queue and play all songs by artist"""
         self.queue.clear()
         self.queue_artist(artist, shuffle=shuffle)
         
         if len(self.queue) > 0:
             self.current_song = self.queue[0]
             self.current_index = 0
-            self._load_queue_to_vlc()
-            self.player.play()
-            self._set_status(PlayerStatus.PLAYING)
+            self._trigger_callbacks('queue_changed')
             self._trigger_callbacks('song_start')
+            self._play_file(self.queue[0].path)
     
     def play_all_songs(self, shuffle: bool = False):
-        """
-        Clear queue and play all songs in the library.
-        
-        Args:
-            shuffle: Whether to shuffle the songs
-        """
+        """Clear queue and play all songs in library"""
         self.queue.clear()
         self.queue_all_songs(shuffle=shuffle)
         
         if len(self.queue) > 0:
             self.current_song = self.queue[0]
             self.current_index = 0
-            self._load_queue_to_vlc()
-            self.player.play()
-            self._set_status(PlayerStatus.PLAYING)
+            self._trigger_callbacks('queue_changed')
             self._trigger_callbacks('song_start')
+            self._play_file(self.queue[0].path)
     
     def pause(self):
         """Pause playback"""
-        if self._status == PlayerStatus.PLAYING:
-            self.player.pause()
+        if self.process and self._status == PlayerStatus.PLAYING:
+            # Send space to ffplay to pause
+            try:
+                self.process.stdin.write(b' ')
+                self.process.stdin.flush()
+            except:
+                pass
             self._set_status(PlayerStatus.PAUSED)
     
     def resume(self):
         """Resume playback"""
-        if self._status == PlayerStatus.PAUSED:
-            self.player.play()
+        if self.process and self._status == PlayerStatus.PAUSED:
+            # Send space to ffplay to resume
+            try:
+                self.process.stdin.write(b' ')
+                self.process.stdin.flush()
+            except:
+                pass
             self._set_status(PlayerStatus.PLAYING)
     
     def stop(self):
         """Stop playback and clear queue"""
-        self.player.stop()
+        self._stop_monitor_thread()
+        
+        if self.process:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=2)
+            except:
+                try:
+                    self.process.kill()
+                except:
+                    pass
+            self.process = None
+        
         self.queue.clear()
         self.current_song = None
         self.current_index = -1
@@ -351,46 +327,30 @@ class MediaPlayer:
         if len(self.queue) == 0:
             return
         
-        self.player.next()
-        self._advance_queue_position()
+        self.current_index = min(self.current_index + 1, len(self.queue) - 1)
+        if self.current_index < len(self.queue):
+            self.current_song = self.queue[self.current_index]
+            self._trigger_callbacks('song_start')
+            self._play_file(self.current_song.path)
     
     def previous(self):
         """Skip to previous song in queue"""
         if len(self.queue) == 0:
             return
         
-        self.player.previous()
-        self._go_back_queue_position()
-    
-    def _advance_queue_position(self):
-        """Advance to next song in queue"""
-        self.current_index = min(self.current_index + 1, len(self.queue) - 1)
-        if self.current_index >= 0 and self.current_index < len(self.queue):
-            self.current_song = self.queue[self.current_index]
-            self._trigger_callbacks('song_start')
-    
-    def _go_back_queue_position(self):
-        """Go to previous song in queue"""
         self.current_index = max(self.current_index - 1, 0)
         if self.current_index >= 0 and self.current_index < len(self.queue):
             self.current_song = self.queue[self.current_index]
             self._trigger_callbacks('song_start')
+            self._play_file(self.current_song.path)
     
     def remove_from_queue(self, index: int):
-        """
-        Remove a song from the queue by index.
-        
-        Args:
-            index: Index of song to remove
-        """
+        """Remove a song from the queue"""
         if 0 <= index < len(self.queue):
-            removed = self.queue[index]
-            # Convert deque to list, remove, convert back
             queue_list = list(self.queue)
             del queue_list[index]
             self.queue = deque(queue_list)
             
-            # Adjust current index if needed
             if index < self.current_index:
                 self.current_index -= 1
             elif index == self.current_index and self.current_index >= len(self.queue):
@@ -421,109 +381,59 @@ class MediaPlayer:
         """Check if player is currently playing"""
         return self._status == PlayerStatus.PLAYING
     
-    def get_current_time(self) -> int:
-        """Get current playback position in milliseconds"""
-        media_player = self.player.get_media_player()
-        if media_player:
-            return media_player.get_time()
-        return 0
-    
-    def get_duration(self) -> int:
-        """Get duration of current song in milliseconds"""
-        media_player = self.player.get_media_player()
-        if media_player:
-            return media_player.get_length()
-        return 0
-    
-    def seek(self, milliseconds: int):
-        """
-        Seek to a specific position in the current song.
-        
-        Args:
-            milliseconds: Position to seek to
-        """
-        media_player = self.player.get_media_player()
-        if media_player:
-            media_player.set_time(milliseconds)
-    
-    def set_volume(self, volume: int):
-        """
-        Set the playback volume.
-        
-        Args:
-            volume: Volume level from 0 (mute) to 100 (max)
-        """
-        volume = max(0, min(100, volume))  # Clamp to 0-100
-        media_player = self.player.get_media_player()
-        if media_player:
-            media_player.audio_set_volume(volume)
-    
-    def get_volume(self) -> int:
-        """
-        Get the current playback volume.
-        
-        Returns:
-            Volume level from 0 to 100
-        """
-        media_player = self.player.get_media_player()
-        if media_player:
-            return media_player.audio_get_volume()
-        return 0
-    
-    def mute(self):
-        """Mute the player (save current volume for unmute)"""
-        if not hasattr(self, '_saved_volume'):
-            self._saved_volume = self.get_volume()
-        self.set_volume(0)
-    
-    def unmute(self):
-        """Unmute the player (restore previous volume)"""
-        if hasattr(self, '_saved_volume'):
-            self.set_volume(self._saved_volume)
-        else:
-            self.set_volume(50)  # Default to 50% if no saved volume
-    
-    def is_muted(self) -> bool:
-        """Check if player is muted"""
-        return self.get_volume() == 0
-    
-    def increase_volume(self, increment: int = 5) -> int:
-        """
-        Increase volume by a given amount.
-        
-        Args:
-            increment: Amount to increase (default 5%)
-            
-        Returns:
-            New volume level
-        """
-        current = self.get_volume()
-        new_volume = min(100, current + increment)
-        self.set_volume(new_volume)
-        return new_volume
-    
-    def decrease_volume(self, decrement: int = 5) -> int:
-        """
-        Decrease volume by a given amount.
-        
-        Args:
-            decrement: Amount to decrease (default 5%)
-            
-        Returns:
-            New volume level
-        """
-        current = self.get_volume()
-        new_volume = max(0, current - decrement)
-        self.set_volume(new_volume)
-        return new_volume
-    
     def _set_status(self, status: PlayerStatus):
         """Set player status and trigger callbacks"""
         if self._status != status:
             self._status = status
             self._trigger_callbacks('status_changed')
     
-    # Helper methods for scanning directory structure
+    # Volume control
+    
+    def set_volume(self, volume: int):
+        """
+        Set volume (0-100).
+        
+        Args:
+            volume: Volume level 0-100
+        """
+        self._volume = max(0, min(100, volume))
+        
+        # Update running process if playing
+        if self.process and self._status == PlayerStatus.PLAYING:
+            # Note: ffplay doesn't support live volume change via stdin
+            # You would need to restart playback or use a different approach
+            pass
+    
+    def get_volume(self) -> int:
+        """Get current volume"""
+        return self._volume
+    
+    def mute(self):
+        """Mute player"""
+        self._saved_volume = self._volume
+        self.set_volume(0)
+    
+    def unmute(self):
+        """Unmute player"""
+        self.set_volume(self._saved_volume)
+    
+    def is_muted(self) -> bool:
+        """Check if muted"""
+        return self._volume == 0
+    
+    def increase_volume(self, increment: int = 5) -> int:
+        """Increase volume by amount"""
+        new_vol = min(100, self._volume + increment)
+        self.set_volume(new_vol)
+        return new_vol
+    
+    def decrease_volume(self, decrement: int = 5) -> int:
+        """Decrease volume by amount"""
+        new_vol = max(0, self._volume - decrement)
+        self.set_volume(new_vol)
+        return new_vol
+    
+    # Directory scanning
     
     def _get_album_songs(self, artist: str, album: str) -> List[SongItem]:
         """Get all songs in an album"""
@@ -568,7 +478,7 @@ class MediaPlayer:
         return songs
     
     def _scan_all_songs(self) -> List[SongItem]:
-        """Scan all songs in the music directory"""
+        """Scan all songs in library"""
         if not self.music_dir:
             return []
         
@@ -589,15 +499,14 @@ class MediaPlayer:
         """Check if file is an audio file"""
         audio_extensions = {
             '.mp3', '.flac', '.wav', '.m4a', '.ogg', '.opus',
-            '.aac', '.wma', '.alac', '.ape', '.dsf', '.dsd'
+            '.aac', '.wma', '.alac', '.ape'
         }
         _, ext = os.path.splitext(filepath)
         return ext.lower() in audio_extensions
     
     def __del__(self):
-        """Cleanup VLC instance"""
+        """Cleanup"""
         try:
-            if hasattr(self, 'player'):
-                self.player.stop()
+            self.stop()
         except:
             pass
