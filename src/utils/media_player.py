@@ -2,6 +2,7 @@ import subprocess
 import time
 import os
 import random
+import shutil
 from pathlib import Path
 from typing import List, Optional, Callable, Dict
 from enum import Enum
@@ -84,15 +85,12 @@ class MediaPlayer:
         self._stop_monitor = False
     
     def _check_ffplay_available(self):
-        """Check if ffplay is available on the system"""
-        try:
-            subprocess.run(['ffplay', '-version'], capture_output=True, timeout=2)
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        if shutil.which("ffplay") is None:
             raise RuntimeError(
                 "ffplay not found. Install ffmpeg:\n"
-                "  sudo apt-get install ffmpeg\n"
+                "  sudo apt-get install ffmpeg"
             )
-    
+
     def on_song_start(self, callback: Callable[[SongItem], None]):
         """Register callback for when a song starts"""
         self._callbacks['song_start'].append(callback)
