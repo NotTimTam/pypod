@@ -4,6 +4,7 @@ from functools import partial
 
 from src.utils.screen import Screen
 from src.utils.input import input_handler
+from src.utils.constants import SCREEN_SIZE
 
 from src.ui.menu import Menu
 from src.ui.menu_items import SongMenuItem, AlbumMenuItem
@@ -194,12 +195,12 @@ class JellyfinSongsScreen(Screen):
             self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height, self._download_manager)
 
         # Render download status and error messages
-        self._render_download_status(img, draw, font, menu_y, menu_height)
+        self._render_download_status(draw, font, header_height)
 
         # Render controls
         self.controls.render(img, draw)
 
-    def _render_download_status(self, img, draw, font, menu_y, menu_height):
+    def _render_download_status(self, draw, font, header_height):
         """Render download status messages and prevent navigation indicators."""
         if not self._download_manager:
             return
@@ -207,20 +208,21 @@ class JellyfinSongsScreen(Screen):
         download_state = self._download_manager.get_state()
 
         # Show "Cannot exit while downloading" message
+        draw.rectangle((0,0, SCREEN_SIZE, header_height), fill=(0, 0, 0))
+
         if download_state["current_status"] == "downloading" and download_state["current_download_id"]:
             status_text = f"Downloading: {download_state['current_progress']}%"
-            print(status_text)
-            draw.text((self.padding_left + 4, menu_y + 40), status_text, fill=(0, 255, 0), font=font)
+            draw.text((self.padding_left + 4,0), status_text, fill=(0, 255, 0), font=font)
 
         # Show error message
         if self._error_message:
             error_text = f"Error: {self._error_message[:50]}"
             print(error_text)
-            draw.text((self.padding_left + 4, menu_y + 60), error_text, fill=(255, 0, 0), font=font)
+            draw.text((self.padding_left + 4,0), error_text, fill=(255, 0, 0), font=font)
         elif download_state["current_status"] == "failed" and download_state["error_message"]:
             error_text = f"Download failed: {download_state['error_message'][:40]}"
             print(error_text)
-            draw.text((self.padding_left + 4, menu_y + 60), error_text, fill=(255, 0, 0), font=font)
+            draw.text((self.padding_left + 4, 0), error_text, fill=(255, 0, 0), font=font)
 
     def get_state(self):
         """Return screen state for persistence."""
