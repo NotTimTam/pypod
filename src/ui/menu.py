@@ -150,17 +150,26 @@ class Menu:
 
             # Handle text: marquee if selected, truncate if not
             if is_selected:
-                text_width = draw.textbbox((0, 0), item_text, font=font)[2]
-                if text_width > text_max_width:
-                    # Animate title scroll (marquee)
+                full_text_width = draw.textbbox((0, 0), item_text, font=font)[2]
+                
+                if full_text_width > text_max_width:
                     current_time = time.time()
                     if current_time - self.last_title_shift_time > self.title_shift_interval:
-                        self.title_offset = (self.title_offset + 1) % (len(item_text) + 5)
+                        self.title_offset = (self.title_offset + 1) % (len(item_text) + 10)  # +10 for comfortable gap
                         self.last_title_shift_time = current_time
 
-                    # Create scrolling text
-                    scroll_text = item_text[self.title_offset:] + "     " + item_text[:self.title_offset]
-                    item_text = scroll_text[:len(item_text)]
+                    # Create seamless scrolling text
+                    gap = " " * 6
+                    scroll_text = item_text + gap + item_text
+                    
+                    # Get current position
+                    start = self.title_offset % len(scroll_text)
+                    visible_text = scroll_text[start:start + len(item_text) + len(gap)]
+
+                    # Now force it to fit within text_max_width (no ellipsis for marquee)
+                    item_text = self._truncate_text(visible_text, text_max_width, draw, font, ellipsis="")
+                else:
+                    item_text = item_text  # no need to scroll
             else:
                 # Truncate text if it doesn't fit and item is not selected
                 item_text = self._truncate_text(item_text, text_max_width, draw, font)
