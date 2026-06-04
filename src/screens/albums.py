@@ -1,4 +1,3 @@
-from functools import partial
 from pathlib import Path
 
 from src.utils.screen import Screen
@@ -8,8 +7,8 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
-class ArtistScreen(Screen):
-    """Artists screen with navigation menu."""
+class AlbumScreen(Screen):
+    """Albums screen with navigation menu."""
 
     def __init__(self, state=None, request_screen=None, music_dir=None):
         super().__init__(
@@ -21,8 +20,10 @@ class ArtistScreen(Screen):
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
+        self._return_index = state.get("return_index", 0) if state else 0
+
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"ARTISTS")
+        self.header = Header(title=f"{state.get("artist", "MUSIC") if state else "MUSIC"}")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -37,16 +38,17 @@ class ArtistScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
+        self.menu.add_item('w.i.p.', self.nullish)
 
-        for index, artist_folder in enumerate(self._music_dir.iterdir()):
-            if not artist_folder.is_dir():
-                continue
-            else: self.menu.add_item(artist_folder.name, partial(self._request_screen, "albums", { "return_index": index, "artist": artist_folder.name }))
+        # for artist_folder in self._music_dir.iterdir():
+        #     if not artist_folder.is_dir():
+        #         continue
+        #     else: self.menu.add_item(artist_folder.name, self.nullish)
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("music", {"menu": {"current_index": 2}}))
+        input_handler.handle_button("B", lambda: self._request_screen("artists", {"menu": {"current_index": self._return_index}}))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""

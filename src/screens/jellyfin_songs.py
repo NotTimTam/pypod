@@ -39,7 +39,7 @@ class JellyfinSongsScreen(Screen):
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
             "y": "chevron-down.png",
-            "a": "play.png",
+            "a": "download.png",
             "b": "chevron-left.png",
         })
 
