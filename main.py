@@ -27,11 +27,12 @@ if not LIBRARY:
 JELLYFIN_URL = os.getenv("JELLYFIN_URL")
 
 if JELLYFIN_URL:
-    JELLYFIN_API_KEY = os.getenv("JELLYFIN_API_KEY")
     JELLYFIN_LIBRARY  = os.getenv("JELLYFIN_LIBRARY")
-    if not (JELLYFIN_API_KEY and JELLYFIN_LIBRARY):
-        raise ValueError("JELLYFIN_URL configured but missing JELLYFIN_API_KEY or JELLYFIN_LIBRARY")
-    jellyfin = Jellyfin(JELLYFIN_URL, JELLYFIN_API_KEY, JELLYFIN_LIBRARY, download_root=LIBRARY + "/music")
+    JELLYFIN_USERNAME = os.getenv("JELLYFIN_USERNAME")
+    JELLYFIN_PASSWORD = os.getenv("JELLYFIN_PASSWORD")
+    if not (JELLYFIN_LIBRARY and JELLYFIN_USERNAME and JELLYFIN_PASSWORD):
+        raise ValueError("JELLYFIN_URL configured but missing JELLYFIN_USERNAME, JELLYFIN_PASSWORD and/or JELLYFIN_LIBRARY")
+    jellyfin = Jellyfin(JELLYFIN_URL, JELLYFIN_USERNAME, JELLYFIN_PASSWORD, JELLYFIN_LIBRARY, download_root=LIBRARY + "/music")
     download_manager = DownloadManager(jellyfin=jellyfin)
 else:
     jellyfin = None
