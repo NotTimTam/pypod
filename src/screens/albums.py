@@ -19,6 +19,8 @@ class AlbumScreen(Screen):
             padding_right=32
         )
 
+        print(state)
+
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
