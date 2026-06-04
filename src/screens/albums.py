@@ -21,9 +21,10 @@ class AlbumScreen(Screen):
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
         self._return_index = state.get("return_index", 0) if state else 0
+        self._return_screen = "artists" if (state.get("artist") if state else None) else "music"
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"{state.get('artist', 'MUSIC') if state else 'MUSIC'}")
+        self.header = Header(title=f"{state.get('artist', 'ALBUMS') if state else 'ALBUMS'}")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -48,7 +49,7 @@ class AlbumScreen(Screen):
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("artists", {"menu": {"current_index": self._return_index}}))
+        input_handler.handle_button("B", lambda: self._request_screen(self._return_screen, {"menu": {"current_index": self._return_index}}))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
