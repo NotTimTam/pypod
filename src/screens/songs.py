@@ -60,7 +60,7 @@ class SongScreen(Screen):
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("albums", {"current_index": self._album_index, "artist": self._artist if self._from_artist else None }))
+        input_handler.handle_button("B", lambda: self._request_screen("albums", { "menu": {"current_index": self._return_index}, "artist": self._artist if self._from_artist else None }))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
