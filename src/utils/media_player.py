@@ -71,8 +71,8 @@ class MediaPlayer:
         self._status = PlayerStatus.STOPPED
         
         # Volume (0-100)
-        self._volume = 80
-        self._saved_volume = 80
+        self._volume = 50
+        self._saved_volume = 50
         
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
@@ -154,10 +154,6 @@ class MediaPlayer:
         if self._monitor_thread:
             self._monitor_thread.join(timeout=1)
 
-    def _read_output(self, process):
-        for line in process.stdout:
-            print(line, end="")
-
     def _play_file(self, file_path: str):
         """
         Play a file using ffplay.
@@ -183,7 +179,7 @@ class MediaPlayer:
                 '-nodisp',
                 '-autoexit',
                 '-hide_banner',
-                '-loglevel', 'debug',
+                '-loglevel', 'quiet',
                 '-volume', str(self._volume),
                 file_path
             ]
@@ -199,12 +195,6 @@ class MediaPlayer:
             time.sleep(0.05)
             if self.process.poll() is not None:
                 raise RuntimeError(f"ffplay exited immediately with code {self.process.returncode}")
-
-            threading.Thread(
-                target=self._read_output,
-                args=(self.process,),
-                daemon=True
-            ).start()
             
             self._set_status(PlayerStatus.PLAYING)
             self._start_monitor()
