@@ -8,7 +8,7 @@ from typing import List, Optional, Callable, Dict
 from enum import Enum
 from dataclasses import dataclass
 from collections import deque
-from threading import Thread
+from threading import Thread, Lock, Event
 import threading
 
 class PlayerStatus(Enum):
@@ -40,23 +40,27 @@ class SongItem:
 
 class MediaPlayer:
     """
-    Lightweight media player for Pi Zero using persistent ffplay via stdin.
-    Supports MP3, FLAC, WAV, OGG, M4A, and other common audio formats.
+    Lightweight media player for Pi Zero using persistent ffplay with internal buffering.
     
-    Optimized for Pi Zero: keeps ffplay running and feeds it audio via stdin
-    for instant song switching without subprocess startup overhead.
+    Architecture:
+    - Single persistent ffplay process reading from stdin
+    - Internal buffer queue (deque) holds audio chunks
+    - Single streaming thread constantly feeds buffer to ffplay
+    - Song switching is instant (just clear buffer and load new song)
+    - No buffering corruption, no competing streams
+    
+    Supports MP3, FLAC, WAV, OGG, M4A, and other common audio formats.
     
     Directory structure expected:
         /music_dir/artist/album/song.ext
     """
     
-    def __init__(self, music_dir: Optional[str] = None, prewarm: bool = True):
+    def __init__(self, music_dir: Optional[str] = None):
         """
         Initialize the media player.
         
         Args:
             music_dir: Optional path to music directory
-            prewarm: If True, start ffplay daemon immediately (default True)
         """
         self.music_dir = music_dir
         
@@ -76,6 +80,17 @@ class MediaPlayer:
         self._volume = 50
         self._saved_volume = 50
         
+        # Internal audio buffer and streaming
+        self._stream_buffer: deque = deque()
+        self._buffer_lock = Lock()
+        self._stream_thread: Optional[Thread] = None
+        self._stop_streaming = False
+        self._buffer_has_data = Event()
+        
+        # Monitor thread for detecting song end
+        self._monitor_thread: Optional[Thread] = None
+        self._stop_monitor = False
+        
         # Event callbacks
         self._callbacks: Dict[str, List[Callable]] = {
             'song_start': [],
@@ -84,17 +99,9 @@ class MediaPlayer:
             'status_changed': [],
         }
         
-        # Monitor thread for detecting song end
-        self._monitor_thread: Optional[Thread] = None
-        self._stop_monitor = False
-        
-        # Streaming thread for file I/O
-        self._streaming_thread: Optional[Thread] = None
-        self._stop_streaming = False
-        
-        # Initialize persistent ffplay if requested
-        if prewarm:
-            self._init_ffplay_daemon()
+        # Start persistent ffplay and streaming thread
+        self._init_ffplay_daemon()
+        self._start_stream_thread()
     
     def _check_ffplay_available(self):
         if shutil.which("ffplay") is None:
@@ -104,23 +111,18 @@ class MediaPlayer:
             )
     
     def _init_ffplay_daemon(self):
-        """
-        Start persistent ffplay daemon reading from stdin.
-        This is called once during init (or on demand) and stays running.
-        """
-        # Don't restart if already running
+        """Start persistent ffplay daemon reading from stdin (once on init)"""
         if self.process and self.process.poll() is None:
-            return
+            return  # Already running
         
         try:
             cmd = [
                 'ffplay',
-                '-nodisp',                  # No video window
-                '-autoexit',                # Exit when input stream ends
-                '-hide_banner',             # Suppress banner
-                '-loglevel', 'quiet',       # Minimal logging
+                '-nodisp',
+                '-hide_banner',
+                '-loglevel', 'quiet',
                 '-volume', str(self._volume),
-                '-'                         # Read from stdin
+                '-'  # Read from stdin
             ]
             
             self.process = subprocess.Popen(
@@ -128,7 +130,7 @@ class MediaPlayer:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                bufsize=0  # Unbuffered for responsiveness
+                bufsize=0  # Unbuffered
             )
             
             print(f"[ffplay] daemon initialized (PID: {self.process.pid})")
@@ -137,19 +139,94 @@ class MediaPlayer:
             print(f"Error initializing ffplay daemon: {e}")
             self.process = None
     
-    def _restart_ffplay_daemon(self):
-        """Restart ffplay daemon (kills old process immediately, starts new one)"""
-        if self.process:
+    def _start_stream_thread(self):
+        """Start the internal streaming thread (runs once, continuously feeds buffer to ffplay)"""
+        if self._stream_thread and self._stream_thread.is_alive():
+            return
+        
+        self._stop_streaming = False
+        self._stream_thread = Thread(target=self._stream_worker, daemon=True)
+        self._stream_thread.start()
+    
+    def _stream_worker(self):
+        """
+        Background thread: continuously reads from internal buffer and writes to ffplay stdin.
+        This is the single "producer" for ffplay's stdin.
+        """
+        chunk_size = 64 * 1024
+        
+        while not self._stop_streaming:
             try:
-                # Kill immediately without waiting
-                self.process.kill()
-            except:
-                pass
-            self.process = None
+                # Wait for data in buffer (blocks until signaled)
+                self._buffer_has_data.wait(timeout=0.5)
+                
+                if self._stop_streaming:
+                    break
+                
+                # Get chunk from buffer
+                with self._buffer_lock:
+                    if len(self._stream_buffer) == 0:
+                        self._buffer_has_data.clear()
+                        continue
+                    
+                    chunk = self._stream_buffer.popleft()
+                
+                # Write to ffplay
+                if self.process and self.process.poll() is None:
+                    try:
+                        self.process.stdin.write(chunk)
+                        self.process.stdin.flush()
+                    except BrokenPipeError:
+                        print("[stream] ffplay pipe broken, restarting...")
+                        self._init_ffplay_daemon()
+                    except Exception as e:
+                        print(f"[stream] write error: {e}")
+                else:
+                    # ffplay died, restart
+                    print("[stream] ffplay died, restarting...")
+                    self._init_ffplay_daemon()
+            
+            except Exception as e:
+                print(f"[stream] error: {e}")
+                time.sleep(0.1)
+    
+    def _load_file_to_buffer(self, file_path: str):
+        """
+        Load audio file into internal buffer (non-blocking).
+        This is where we control what data goes to ffplay.
         
-        # Start new ffplay immediately
-        self._init_ffplay_daemon()
+        Args:
+            file_path: Full path to audio file
+        """
+        chunk_size = 64 * 1024
         
+        try:
+            # Clear old stream data
+            with self._buffer_lock:
+                self._stream_buffer.clear()
+            
+            # Load file into buffer
+            with open(file_path, 'rb') as audio_file:
+                while True:
+                    chunk = audio_file.read(chunk_size)
+                    if not chunk:
+                        break
+                    
+                    with self._buffer_lock:
+                        self._stream_buffer.append(chunk)
+                    
+                    # Signal that data is available
+                    self._buffer_has_data.set()
+            
+            print(f"[buffer] loaded {file_path}")
+            
+        except FileNotFoundError:
+            print(f"Audio file not found: {file_path}")
+            self._set_status(PlayerStatus.STOPPED)
+        except Exception as e:
+            print(f"Error loading file to buffer: {e}")
+            self._set_status(PlayerStatus.STOPPED)
+    
     def create_song_item(self, song, album, artist):
         return SongItem(song, album, artist, self.music_dir + "/" + artist + "/" + album + "/" + song)
 
@@ -189,17 +266,29 @@ class MediaPlayer:
     def _monitor_playback(self):
         """Monitor ffplay process and detect when song ends"""
         while not self._stop_monitor and self.process:
-            if self.process.poll() is not None:
-                # Process ended (song finished)
-                if self._status == PlayerStatus.PLAYING:
+            # Song is done when buffer is empty AND ffplay is still running
+            # (meaning it finished consuming the data)
+            with self._buffer_lock:
+                buffer_empty = len(self._stream_buffer) == 0
+            
+            if buffer_empty and self.process.poll() is None:
+                # Give it a moment to fully finish
+                time.sleep(0.1)
+                
+                # Check again to be sure
+                with self._buffer_lock:
+                    buffer_empty = len(self._stream_buffer) == 0
+                
+                if buffer_empty and self._status == PlayerStatus.PLAYING:
                     self._trigger_callbacks('song_finished')
                     # Auto-play next if available
                     if len(self.queue) > self.current_index + 1:
                         self.next()
                     else:
                         self._set_status(PlayerStatus.STOPPED)
-                break
-            time.sleep(0.5)
+                    break
+            
+            time.sleep(0.2)
     
     def _start_monitor(self):
         """Start monitoring thread"""
@@ -212,51 +301,11 @@ class MediaPlayer:
         self._stop_monitor = True
         if self._monitor_thread:
             self._monitor_thread.join(timeout=1)
-
-    def _stream_file_to_ffplay(self, file_path: str):
-        """
-        Background thread: reads file and streams to ffplay in chunks.
-        Prevents blocking the main thread.
-        
-        Args:
-            file_path: Full path to audio file
-        """
-        chunk_size = 64 * 1024  # 64KB chunks
-        
-        try:
-            with open(file_path, 'rb') as audio_file:
-                # Stream file in chunks, checking stop flag frequently
-                while not self._stop_streaming:
-                    chunk = audio_file.read(chunk_size)
-                    if not chunk:
-                        break  # EOF reached
-                    
-                    # Check stop flag before writing
-                    if self._stop_streaming:
-                        break
-                    
-                    try:
-                        self.process.stdin.write(chunk)
-                        self.process.stdin.flush()
-                    except BrokenPipeError:
-                        # ffplay died
-                        print("[ffplay] pipe broken during streaming")
-                        break
-                    except Exception as e:
-                        print(f"Error writing to ffplay: {e}")
-                        break
-        
-        except FileNotFoundError:
-            print(f"Audio file not found: {file_path}")
-            self._set_status(PlayerStatus.STOPPED)
-        except Exception as e:
-            print(f"Error streaming file: {e}")
-            self._set_status(PlayerStatus.STOPPED)
     
     def _play_file(self, file_path: str):
         """
-        Stream audio file to persistent ffplay via stdin (non-blocking).
-        Stops any currently playing stream and spawns a new background thread.
+        Play a file by loading it into the internal buffer.
+        Instant playback, no subprocess restarts, no competing streams.
         
         Args:
             file_path: Full path to audio file
@@ -265,29 +314,12 @@ class MediaPlayer:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
         
-        # Stop old streaming thread if one is running
-        if self._streaming_thread and self._streaming_thread.is_alive():
-            self._stop_streaming = True
-            self._streaming_thread.join(timeout=0.1)
+        # Load file into buffer (this will clear old stream)
+        self._load_file_to_buffer(file_path)
         
-        # Fast restart ffplay to clear stream and prevent audio corruption
-        # (necessary to properly separate audio streams)
-        self._restart_ffplay_daemon()
-        
-        # Reset streaming flag for new stream
-        self._stop_streaming = False
-        
-        # Start playback status immediately (non-blocking)
+        # Set status and start monitoring
         self._set_status(PlayerStatus.PLAYING)
         self._start_monitor()
-        
-        # Stream file in background thread
-        self._streaming_thread = Thread(
-            target=self._stream_file_to_ffplay,
-            args=(file_path,),
-            daemon=True
-        )
-        self._streaming_thread.start()
     
     def play_song(self, song: SongItem):
         """
@@ -401,10 +433,9 @@ class MediaPlayer:
         """Stop playback and clear queue"""
         self._stop_monitor_thread()
         
-        # Stop streaming thread
-        self._stop_streaming = True
-        if self._streaming_thread and self._streaming_thread.is_alive():
-            self._streaming_thread.join(timeout=0.5)
+        # Clear buffer
+        with self._buffer_lock:
+            self._stream_buffer.clear()
         
         if self.process:
             try:
@@ -499,9 +530,8 @@ class MediaPlayer:
         """
         self._volume = max(0, min(100, volume))
         
-        # Note: ffplay doesn't support live volume change via stdin.
-        # Volume changes take effect on the next song played.
-        # For live volume control, would need to restart ffplay or use a different backend.
+        # Note: Volume changes take effect on next song.
+        # For live volume control, would need additional implementation.
     
     def get_volume(self) -> int:
         """Get current volume"""
@@ -607,5 +637,6 @@ class MediaPlayer:
         """Cleanup"""
         try:
             self.stop()
+            self._stop_streaming = True
         except:
             pass
