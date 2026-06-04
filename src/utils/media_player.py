@@ -183,8 +183,8 @@ class MediaPlayer:
                 '-nodisp',
                 '-autoexit',
                 '-hide_banner',
-                '-loglevel', 'quiet',
-                '-volume', str(self._volume / 100.0),
+                '-loglevel', 'debug',
+                '-volume', str(self._volume),
                 file_path
             ]
             
@@ -195,6 +195,10 @@ class MediaPlayer:
                 text=True,
                 bufsize=1
             )
+
+            time.sleep(0.05)
+            if self.process.poll() is not None:
+                raise RuntimeError(f"ffplay exited immediately with code {self.process.returncode}")
 
             threading.Thread(
                 target=self._read_output,
