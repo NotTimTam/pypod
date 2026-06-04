@@ -9,7 +9,9 @@ from enum import Enum
 from dataclasses import dataclass
 from collections import deque
 from threading import Thread
-
+import threading
+import subprocess
+import os
 
 class PlayerStatus(Enum):
     """Player status enumeration"""
@@ -133,7 +135,6 @@ class MediaPlayer:
             if self.process.poll() is not None:
                 # Process ended
                 if self._status == PlayerStatus.PLAYING:
-                    print("playing")
                     self._trigger_callbacks('song_finished')
                     # Auto-play next if available
                     if len(self.queue) > self.current_index + 1:
@@ -152,7 +153,11 @@ class MediaPlayer:
         self._stop_monitor = True
         if self._monitor_thread:
             self._monitor_thread.join(timeout=1)
-    
+
+    def _read_output(self, process):
+        for line in process.stdout:
+            print(line, end="")
+
     def _play_file(self, file_path: str):
         """
         Play a file using ffplay.
@@ -185,9 +190,17 @@ class MediaPlayer:
             
             self.process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1
             )
+
+            threading.Thread(
+                target=self._read_output,
+                args=(self.process,),
+                daemon=True
+            ).start()
             
             self._set_status(PlayerStatus.PLAYING)
             self._start_monitor()
@@ -208,7 +221,7 @@ class MediaPlayer:
         self.current_song = song
         self.current_index = 0
 
-        print(song.path)
+        print("Playing", song.path)
 
         self._trigger_callbacks('queue_changed')
         self._trigger_callbacks('song_start')
