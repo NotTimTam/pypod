@@ -76,7 +76,7 @@ class JellyfinSongsScreen(Screen):
 
         # Add songs
         for song in self.songs:
-            duration = song.get("Duration", 0) // 10000000 if song.get("Duration") else 0  # Jellyfin uses ticks
+            duration = song.get("RunTimeTicks", 0) // 10000000 if song.get("RunTimeTicks") else 0  # Jellyfin uses ticks
             song_id = song.get("Id")
             downloaded = self._is_song_downloaded(song.get("Name"))
 
