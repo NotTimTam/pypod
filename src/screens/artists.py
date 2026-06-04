@@ -8,6 +8,7 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
+
 class ArtistScreen(Screen):
     """Artists screen with navigation menu."""
 
@@ -22,7 +23,7 @@ class ArtistScreen(Screen):
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"ARTISTS")
+        self.header = Header(title="ARTISTS")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -37,11 +38,22 @@ class ArtistScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-
         for index, artist_folder in enumerate(self._music_dir.iterdir()):
             if not artist_folder.is_dir():
                 continue
-            else: self.menu.add_item(artist_folder.name, partial(self._request_screen, "albums", { "artist_index": index, "artist": artist_folder.name }))
+            
+            self.menu.add_item(
+                artist_folder.name,
+                partial(
+                    self._request_screen,
+                    "albums",
+                    {
+                        "artist_index": index,
+                        "artist": artist_folder.name,
+                        "return_index": 2,  # Artists is at index 2 in music menu
+                    }
+                )
+            )
 
     def handle_input(self):
         """Handle input."""
@@ -50,7 +62,6 @@ class ArtistScreen(Screen):
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
-        # Calculate center position for menu
         header_height = self.header.get_height(draw, font)
 
         content_width = width - self.padding_left - self.padding_right
@@ -60,13 +71,8 @@ class ArtistScreen(Screen):
         menu_x = self.padding_left + 4
         menu_y = self.padding_top + header_height
 
-        # Render header
         self.header.render(img, draw, font)
-
-        # Render menu
         self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
-
-        # Render controls
         self.controls.render(img, draw)
 
     def get_state(self):

@@ -8,6 +8,7 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
+
 class AlbumScreen(Screen):
     """Albums screen with navigation menu."""
 
@@ -19,20 +20,28 @@ class AlbumScreen(Screen):
             padding_right=32
         )
 
-        print(state)
-
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
-        self._artist_index = state.get("artist_index", 0) if state else 0
+        # Initialize attributes
+        self._artist_index = 0
+        self._return_index = 0
+        self._return_screen = "music"
+        self._artist = None
 
-        self._return_index = state.get("return_index", 0) if state else 0
-        self._return_screen = "artists" if (state.get("artist") if state else None) else "music"
-
-        self._artist = state.get('artist') if state else None
+        if state:
+            self._artist_index = state.get("artist_index", 0)
+            self._return_index = state.get("return_index", 3)  # Default to albums position in music menu
+            self._artist = state.get('artist')
+            # If we have an artist, we came from artists screen; otherwise from music
+            self._return_screen = "artists" if self._artist else "music"
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"{state.get('artist', 'ALBUMS') if state else 'ALBUMS'}")
+        
+        # FIX: Determine header based on whether we're viewing artist albums or all albums
+        header_title = self._artist if self._artist else "ALBUMS"
+        self.header = Header(title=header_title)
+        
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -48,33 +57,79 @@ class AlbumScreen(Screen):
     def _setup_menu(self):
         """Define menu items and their callbacks."""
         if self._artist:
+            # Viewing albums for a specific artist
             artist_folder = self._music_dir / self._artist
 
             for index, album_folder in enumerate(artist_folder.iterdir()):
                 if not album_folder.is_dir():
                     continue
-                # Add menu item for each album
-                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "artist_index": self._artist_index, "album_index": index, "album": album_folder.name, "artist": self._artist, "from_artist": True, "return_screen": "albums" }))
+                
+                self.menu.add_item(
+                    album_folder.name,
+                    partial(
+                        self._request_screen,
+                        "songs",
+                        {
+                            "artist_index": self._artist_index,
+                            "album_index": index,
+                            "album": album_folder.name,
+                            "artist": self._artist,
+                            "from_artist": True,
+                            "return_screen": "albums",
+                            "return_index": index,
+                        }
+                    )
+                )
         else:
+            # Viewing all albums across all artists
             index = 0
             for artist_folder in self._music_dir.iterdir():
                 if not artist_folder.is_dir():
                     continue
+                
                 for album_folder in artist_folder.iterdir():
                     if not album_folder.is_dir():
                         continue
-                    # Add menu item for each album
-                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "artist_index": self._artist_index, "album_index": index, "album": album_folder.name, "artist": artist_folder.name, "return_screen": "albums" }))
+                    
+                    self.menu.add_item(
+                        album_folder.name,
+                        partial(
+                            self._request_screen,
+                            "songs",
+                            {
+                                "artist_index": 0,
+                                "album_index": index,
+                                "album": album_folder.name,
+                                "artist": artist_folder.name,
+                                "from_artist": False,
+                                "return_screen": "albums",
+                                "return_index": index,
+                            }
+                        )
+                    )
                     index += 1
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen(self._return_screen, {"menu": {"current_index": self._artist_index if self._return_screen == "artists" else self._return_index }}))
+        
+        def go_back():
+            return_state = {
+                "menu": {"current_index": self._artist_index if self._return_screen == "artists" else self._return_index}
+            }
+            # If we're going back to artists, pass the artist info
+            if self._return_screen == "artists":
+                return_state["artist_index"] = self._artist_index
+            # If returning from artists view, keep artist context
+            if self._artist:
+                return_state["artist"] = self._artist
+            
+            self._request_screen(self._return_screen, return_state)
+        
+        input_handler.handle_button("B", go_back)
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
-        # Calculate center position for menu
         header_height = self.header.get_height(draw, font)
 
         content_width = width - self.padding_left - self.padding_right
@@ -84,13 +139,8 @@ class AlbumScreen(Screen):
         menu_x = self.padding_left + 4
         menu_y = self.padding_top + header_height
 
-        # Render header
         self.header.render(img, draw, font)
-
-        # Render menu
         self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
-
-        # Render controls
         self.controls.render(img, draw)
 
     def get_state(self):

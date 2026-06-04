@@ -9,6 +9,7 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
+
 class SongScreen(Screen):
     """Songs screen with navigation menu."""
 
@@ -22,9 +23,16 @@ class SongScreen(Screen):
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
-        print(state)
+        # Initialize all attributes before using them
+        self._artist_index = None
+        self._album_index = None
+        self._return_index = None
+        self._return_screen = None
+        self._from_artist = False
+        self._artist = None
+        self._album = None
 
-        if (state):
+        if state:
             self._artist_index = state.get("artist_index")
             self._album_index = state.get("album_index")
             self._return_index = state.get("return_index", 0)
@@ -34,7 +42,9 @@ class SongScreen(Screen):
             self._album = state.get('album')
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"{state.get('album', 'SONGS') if state else 'SONGS'}")
+        album_title = self._album if self._album else "SONGS"
+        self.header = Header(title=album_title)
+        
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -54,21 +64,33 @@ class SongScreen(Screen):
 
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                    # Add menu item for each song
                     self.menu.add_item(file.stem, self.nullish)
-                else:
-                    continue
         else:
             print("not implemented")
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen(self._return_screen, { "menu": {"current_index": self._album_index if self._return_screen == "albums" else self._return_index}, "artist_index": self._artist_index, "album_index": self._album_index, "artist": self._artist if self._from_artist else None }))
+        
+        # FIX: Pass complete state needed for the return screen
+        def go_back():
+            return_state = {
+                "menu": {"current_index": self._album_index},
+                # Always pass artist/album context back
+                "artist": self._artist,
+                "artist_index": self._artist_index,
+                "album_index": self._album_index,
+            }
+            # Include album only if returning to albums from albums view
+            if self._album:
+                return_state["album"] = self._album
+            
+            self._request_screen(self._return_screen, return_state)
+        
+        input_handler.handle_button("B", go_back)
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
-        # Calculate center position for menu
         header_height = self.header.get_height(draw, font)
 
         content_width = width - self.padding_left - self.padding_right
@@ -78,13 +100,8 @@ class SongScreen(Screen):
         menu_x = self.padding_left + 4
         menu_y = self.padding_top + header_height
 
-        # Render header
         self.header.render(img, draw, font)
-
-        # Render menu
         self.menu.render(img, draw, font, menu_x, menu_y, menu_width, menu_height)
-
-        # Render controls
         self.controls.render(img, draw)
 
     def get_state(self):
