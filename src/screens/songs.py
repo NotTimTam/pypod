@@ -52,7 +52,7 @@ class SongScreen(Screen):
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
                     # Add menu item for each song
-                    self.menu.add_item(file.name, self.nullish)
+                    self.menu.add_item(file.stem, self.nullish)
                 else:
                     continue
         else:
