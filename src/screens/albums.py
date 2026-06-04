@@ -52,7 +52,7 @@ class AlbumScreen(Screen):
                 if not album_folder.is_dir():
                     continue
                 # Add menu item for each album
-                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "artist": self._artist, "from": self._return_screen }))
+                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "album": album_folder.name, "artist": self._artist, "from_artist": True, "from": self._return_screen }))
         else:
             index = 0
             for artist_folder in self._music_dir.iterdir():
@@ -62,7 +62,7 @@ class AlbumScreen(Screen):
                     if not album_folder.is_dir():
                         continue
                     # Add menu item for each album
-                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "from": self._return_screen  }))
+                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "album": album_folder.name, "artist": artist_folder.name, "from": self._return_screen  }))
                     index += 1
 
     def handle_input(self):

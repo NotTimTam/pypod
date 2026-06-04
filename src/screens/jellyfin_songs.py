@@ -106,7 +106,6 @@ class JellyfinSongsScreen(Screen):
                 # Check if any file with similar name exists
                 for file in album_folder.glob("*"):
                     if file.is_file() and Path(file.name).stem == song_name:
-                        # Very basic check - in production would verify exact song
                         return True
         return False
 

@@ -1,16 +1,18 @@
 from functools import partial
+from pathlib import Path
 
 from src.utils.screen import Screen
 from src.utils.input import input_handler
+from src.utils.constants import AUDIO_EXTENSIONS
 
 from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
-class MusicScreen(Screen):
-    """Music screen with navigation menu."""
+class SongScreen(Screen):
+    """Songs screen with navigation menu."""
 
-    def __init__(self, state=None, request_screen=None):
+    def __init__(self, state=None, request_screen=None, music_dir=None):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
@@ -18,9 +20,15 @@ class MusicScreen(Screen):
             padding_right=32
         )
         self._request_screen = request_screen
+        self._music_dir = Path(music_dir) if music_dir is not None else None
+
+        if (state):
+            self._return_index = state.get("return_index", 0)
+            self._from_artist = state.get("from_artist", False)
+            self._artist = state.get('artist')
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"MUSIC")
+        self.header = Header(title=f"{state.get('album', 'SONGS') if state else 'SONGS'}")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
@@ -35,19 +43,19 @@ class MusicScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Shuffle Songs", self.nullish)
-        self.menu.add_item("Playlists >", self.nullish)
-        self.menu.add_item("Artists >", partial(self._request_screen, "artists", {}))
-        self.menu.add_item("Albums >", partial(self._request_screen, "albums", { "return_index": 3 }))
-        self.menu.add_item("Songs >", partial(self._request_screen, "songs", { "return_index": 4 }))
-        # self.menu.add_item("Podcasts >", self.nullish)
-        # self.menu.add_item("Genres >", self.nullish)
-        # self.menu.add_item("Audiobooks >", self.nullish)
+        album_folder = self._music_dir / self._artist / self._album
+
+        for file in album_folder.glob("*"):
+            if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
+                # Add menu item for each song
+                self.menu.add_item(file.name, self.nullish)
+            else:
+                continue
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("home", {"menu": {"current_index": 0}}))
+        input_handler.handle_button("B", lambda: self._request_screen("albums", {"menu": {"current_index": self._return_index, "artist": self._artist if self._from_artist else None }}))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
