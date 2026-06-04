@@ -14,6 +14,7 @@ from src.utils.constants import SCREEN_SIZE
 from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
 from src.utils.download_manager import DownloadManager
+from src.utils.media_player import MediaPlayer
 
 #########################################
 
@@ -37,6 +38,8 @@ if JELLYFIN_URL:
 else:
     jellyfin = None
     download_manager = None
+
+media_player = MediaPlayer(music_dir=LIBRARY + "/music")
 
 # Begin polling for battery data
 start_device_thread()
@@ -92,13 +95,13 @@ def load_screen(name, state=None):
         return _MusicScreen(state=state, request_screen=request_screen)
     elif name == "artists":
         from src.screens.artists import ArtistScreen as _ArtistScreen
-        return _ArtistScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music")
+        return _ArtistScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music", media_player=media_player)
     elif name == "albums":
         from src.screens.albums import AlbumScreen as _AlbumScreen
-        return _AlbumScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music")
+        return _AlbumScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music", media_player=media_player)
     elif name == "songs":
         from src.screens.songs import SongScreen as _SongScreen
-        return _SongScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music")
+        return _SongScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music", media_player=media_player)
     elif name == "settings":
         from src.screens.settings import SettingsScreen as _SettingsScreen
         return _SettingsScreen(state=state, request_screen=request_screen)

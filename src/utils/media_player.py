@@ -7,8 +7,9 @@ class SongItem:
         self.artist = artist
 
 class MediaPlayer:
-    def __init__(self):
+    def __init__(self, music_dir=None):
         print("MEDIA PLAYER NOT IMPLEMENTED")
+        self.music_dir = music_dir
 
     def play_song(self, song: SongItem):
         print(song)
@@ -21,5 +22,3 @@ class MediaPlayer:
     
     def queue_artist(self, path):
         return None
-    
-media_player = MediaPlayer()

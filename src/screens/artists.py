@@ -12,7 +12,7 @@ from src.ui.control_icons import ControlIcons
 class ArtistScreen(Screen):
     """Artists screen with navigation menu."""
 
-    def __init__(self, state=None, request_screen=None, music_dir=None):
+    def __init__(self, state=None, request_screen=None, music_dir=None, media_player=None):
         super().__init__(
             padding_top=12,
             padding_bottom=12,
@@ -20,6 +20,7 @@ class ArtistScreen(Screen):
             padding_right=32
         )
         self._request_screen = request_screen
+        self._media_player = media_player
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
         menu_state = state.get("menu", {}) if state else {}
