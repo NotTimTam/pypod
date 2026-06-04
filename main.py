@@ -90,6 +90,9 @@ def load_screen(name, state=None):
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
         return _MusicScreen(state=state, request_screen=request_screen)
+    elif name == "artists":
+        from src.screens.artists import ArtistScreen as _ArtistScreen
+        return _ArtistScreen(state=state, request_screen=request_screen, music_dir=LIBRARY + "/music")
     elif name == "settings":
         from src.screens.settings import SettingsScreen as _SettingsScreen
         return _SettingsScreen(state=state, request_screen=request_screen)
