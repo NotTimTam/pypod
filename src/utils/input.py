@@ -84,6 +84,7 @@ class InputHandler:
                 label in self.long_press_callbacks):
                 # Trigger the callback
                 self.long_press_triggered[label] = True
+                self.event_queue = [e for e in self.event_queue if e != label]
                 self.long_press_callbacks[label]()
 
     def button_state(self, button_label):
