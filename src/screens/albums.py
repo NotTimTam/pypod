@@ -23,7 +23,7 @@ class AlbumScreen(Screen):
         self._return_index = state.get("return_index", 0) if state else 0
 
         menu_state = state.get("menu", {}) if state else {}
-        self.header = Header(title=f"{state.get("artist", "MUSIC") if state else "MUSIC"}")
+        self.header = Header(title=f"{state.get('artist', 'MUSIC') if state else 'MUSIC'}")
         self.menu = Menu(state=menu_state)
         self.controls = ControlIcons(icons={
             "x": "chevron-up.png",
