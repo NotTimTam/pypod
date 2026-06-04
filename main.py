@@ -15,6 +15,7 @@ from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
 from src.utils.download_manager import DownloadManager
 from src.utils.media_player import MediaPlayer
+from src.utils.input import input_handler
 
 #########################################
 
@@ -138,8 +139,18 @@ text_y = int(disp.height - size_y - 4)
 current_screen_name = "home"
 current_screen = load_screen(current_screen_name, {})
 
+def on_a_long_press():
+    """Called when A button is held for 2+ seconds"""
+    request_screen("now_playing")
+ 
+input_handler.register_long_press('A', on_a_long_press, duration=2.0)
+
+
 try:
     while True:
+        if (current_screen_name != "now_playing"):
+            input_handler.check_long_presses()
+
         if (requested_screen):
             current_screen_name = requested_screen
             current_screen = load_screen(current_screen_name, requested_state)
