@@ -41,7 +41,7 @@ class ArtistScreen(Screen):
         for index, artist_folder in enumerate(self._music_dir.iterdir()):
             if not artist_folder.is_dir():
                 continue
-            else: self.menu.add_item(artist_folder.name, partial(self._request_screen, "albums", { "return_index": index, "artist": artist_folder.name }))
+            else: self.menu.add_item(artist_folder.name, partial(self._request_screen, "albums", { "artist_index": index, "artist": artist_folder.name }))
 
     def handle_input(self):
         """Handle input."""

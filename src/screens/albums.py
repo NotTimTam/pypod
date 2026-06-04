@@ -24,6 +24,8 @@ class AlbumScreen(Screen):
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
+        self._artist_index = state.get("artist_index", 0) if state else 0
+
         self._return_index = state.get("return_index", 0) if state else 0
         self._return_screen = "artists" if (state.get("artist") if state else None) else "music"
 
@@ -48,14 +50,11 @@ class AlbumScreen(Screen):
         if self._artist:
             artist_folder = self._music_dir / self._artist
 
-            if not artist_folder.is_dir():
-                return self._request_screen(self._return_screen, {"menu": {"current_index": self._return_index}})
-
             for index, album_folder in enumerate(artist_folder.iterdir()):
                 if not album_folder.is_dir():
                     continue
                 # Add menu item for each album
-                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "album": album_folder.name, "artist": self._artist, "from_artist": True, "from": self._return_screen }))
+                self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "artist_index": self._artist_index, "album_index": index, "album": album_folder.name, "artist": self._artist, "from_artist": True, "from": self._return_screen }))
         else:
             index = 0
             for artist_folder in self._music_dir.iterdir():
@@ -65,13 +64,13 @@ class AlbumScreen(Screen):
                     if not album_folder.is_dir():
                         continue
                     # Add menu item for each album
-                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "return_index": index, "album": album_folder.name, "artist": artist_folder.name, "from": self._return_screen }))
+                    self.menu.add_item(album_folder.name, partial(self._request_screen, "songs", { "artist_index": self._artist_index, "album_index": index, "album": album_folder.name, "artist": artist_folder.name, "from": self._return_screen }))
                     index += 1
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen(self._return_screen, {"menu": {"current_index": self._return_index}}))
+        input_handler.handle_button("B", lambda: self._request_screen(self._return_screen, {"menu": {"current_index": self._artist_index if self._return_screen == "artists" else self._return_index }}))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
