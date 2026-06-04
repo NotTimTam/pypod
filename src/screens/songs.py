@@ -4,11 +4,11 @@ from pathlib import Path
 from src.utils.screen import Screen
 from src.utils.input import input_handler
 from src.utils.constants import AUDIO_EXTENSIONS
+from src.utils.media_player import media_player, SongItem
 
 from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
-
 
 class SongScreen(Screen):
     """Songs screen with navigation menu."""
@@ -59,12 +59,16 @@ class SongScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
+        self.menu.add_item("Play All", self.nullish)
+        self.menu.add_item("Queue All", self.nullish)
+
         if self._artist and self._album:
             album_folder = self._music_dir / self._artist / self._album
 
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                    self.menu.add_item(file.stem, self.nullish)
+                    print("IMPLEMENT QUEUE/PLAY DIALOGUE")
+                    self.menu.add_item(file.stem, lambda: media_player.play_song(SongItem(file.stem, self._album, self._artist)))
         else:
             print("not implemented")
 
