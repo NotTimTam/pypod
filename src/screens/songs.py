@@ -43,14 +43,18 @@ class SongScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        album_folder = self._music_dir / self._artist / self._album
 
-        for file in album_folder.glob("*"):
-            if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                # Add menu item for each song
-                self.menu.add_item(file.name, self.nullish)
-            else:
-                continue
+        if self._artist and self._album:
+            album_folder = self._music_dir / self._artist / self._album
+
+            for file in album_folder.glob("*"):
+                if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
+                    # Add menu item for each song
+                    self.menu.add_item(file.name, self.nullish)
+                else:
+                    continue
+        else:
+            print("not implemented")
 
     def handle_input(self):
         """Handle input."""
