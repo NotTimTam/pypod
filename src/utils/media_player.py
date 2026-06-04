@@ -270,8 +270,9 @@ class MediaPlayer:
             self._stop_streaming = True
             self._streaming_thread.join(timeout=0.5)
         
-        # Restart ffplay to clear any buffered data
-        self._restart_ffplay_daemon()
+        # Ensure ffplay daemon is running (only init if crashed)
+        if not self.process or self.process.poll() is not None:
+            self._init_ffplay_daemon()
         
         # Reset streaming flag for new stream
         self._stop_streaming = False
