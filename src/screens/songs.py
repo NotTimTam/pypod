@@ -22,6 +22,8 @@ class SongScreen(Screen):
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
+        print(state)
+
         if (state):
             self._album_index = state.get("album_index")
             self._return_index = state.get("return_index", 0)
