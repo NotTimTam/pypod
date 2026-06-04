@@ -207,22 +207,22 @@ class JellyfinSongsScreen(Screen):
 
         download_state = self._download_manager.get_state()
 
-        # Show "Cannot exit while downloading" message
-        draw.rectangle((0,0, SCREEN_SIZE, header_height), fill=(0, 0, 0))
-
         if download_state["current_status"] == "downloading" and download_state["current_download_id"]:
             status_text = f"Downloading: {download_state['current_progress']}%"
-            draw.text((self.padding_left + 4,0), status_text, fill=(0, 255, 0), font=font)
+            draw.rectangle((0,0, SCREEN_SIZE, header_height), fill=(0, 0, 0))
+            draw.text((self.padding_left + 4, 2), status_text, fill=(0, 255, 0), font=font)
 
         # Show error message
         if self._error_message:
             error_text = f"Error: {self._error_message[:50]}"
             print(error_text)
-            draw.text((self.padding_left + 4,0), error_text, fill=(255, 0, 0), font=font)
+            draw.rectangle((0,0, SCREEN_SIZE, header_height), fill=(0, 0, 0))
+            draw.text((self.padding_left + 4, 2), error_text, fill=(255, 0, 0), font=font)
         elif download_state["current_status"] == "failed" and download_state["error_message"]:
             error_text = f"Download failed: {download_state['error_message'][:40]}"
             print(error_text)
-            draw.text((self.padding_left + 4, 0), error_text, fill=(255, 0, 0), font=font)
+            draw.rectangle((0,0, SCREEN_SIZE, header_height), fill=(0, 0, 0))
+            draw.text((self.padding_left + 4, 2), error_text, fill=(255, 0, 0), font=font)
 
     def get_state(self):
         """Return screen state for persistence."""
