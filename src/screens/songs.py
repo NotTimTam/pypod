@@ -23,6 +23,7 @@ class SongScreen(Screen):
         self._music_dir = Path(music_dir) if music_dir is not None else None
 
         if (state):
+            self._album_index = state.get("album_index")
             self._return_index = state.get("return_index", 0)
             self._from_artist = state.get("from_artist", False)
             self._artist = state.get('artist')
@@ -44,7 +45,6 @@ class SongScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-
         if self._artist and self._album:
             album_folder = self._music_dir / self._artist / self._album
 
@@ -60,7 +60,7 @@ class SongScreen(Screen):
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        input_handler.handle_button("B", lambda: self._request_screen("albums", {"current_index": self._return_index, "artist": self._artist if self._from_artist else None }))
+        input_handler.handle_button("B", lambda: self._request_screen("albums", {"current_index": self._album_index, "artist": self._artist if self._from_artist else None }))
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
