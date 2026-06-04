@@ -83,7 +83,7 @@ class SongScreen(Screen):
              
                     for file in album_folder.glob("*"):
                         if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                            song_item = self._media_player.create_song_item(file.name, self._album, self._artist)
+                            song_item = self._media_player.create_song_item(file.name, album_folder.name, artist_folder.name)
                             callback = partial(self._media_player.play_song, song_item)
                             self.menu.add_item(file.stem + " / " + album_folder.name + " / " + artist_folder.name, callback)
 
