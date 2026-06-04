@@ -69,7 +69,7 @@ class SongScreen(Screen):
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
                     print("IMPLEMENT QUEUE/PLAY DIALOGUE")
-                    self.menu.add_item(file.stem, lambda: self._media_player.play_song(SongItem(file.name, self._album, self._artist)))
+                    self.menu.add_item(file.stem, lambda: self._media_player.play_song(self._media_player.create_song_item(file.name, self._album, self._artist)))
         else:
             print("not implemented")
 

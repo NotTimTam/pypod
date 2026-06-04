@@ -90,6 +90,9 @@ class MediaPlayer:
                 "ffplay not found. Install ffmpeg:\n"
                 "  sudo apt-get install ffmpeg"
             )
+        
+    def create_song_item(self, song, album, artist):
+        return SongItem(song, album, artist, self.music_dir + "/" + artist + "/" + album + "/" + song)
 
     def on_song_start(self, callback: Callable[[SongItem], None]):
         """Register callback for when a song starts"""
