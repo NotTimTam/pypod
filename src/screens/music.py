@@ -39,7 +39,7 @@ class MusicScreen(Screen):
         self.menu.add_item("Playlists >", self.nullish)
         self.menu.add_item("Artists >", partial(self._request_screen, "artists", {}))
         self.menu.add_item("Albums >", partial(self._request_screen, "albums", { "return_index": 3 }))
-        self.menu.add_item("Songs >", partial(self._request_screen, "songs", { "return_index": 4 }))
+        self.menu.add_item("Songs >", partial(self._request_screen, "songs", { "return_index": 4, "return_screen": "music", }))
         # self.menu.add_item("Podcasts >", self.nullish)
         # self.menu.add_item("Genres >", self.nullish)
         # self.menu.add_item("Audiobooks >", self.nullish)
