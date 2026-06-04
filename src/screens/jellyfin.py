@@ -36,8 +36,6 @@ class JellyfinScreen(Screen):
         """Define menu items and their callbacks."""
         self.menu.add_item("Artists >", partial(self._request_screen, "jellyfin_artists", {"menu": {"current_index": 0}}))
         self.menu.add_item("Albums >", partial(self._request_screen, "jellyfin_albums", {"menu": {"current_index": 0}}))
-        self.menu.add_item("Playlists >", self.nullish)
-        self.menu.add_item("Genres >", self.nullish)
 
     def nullish(self):
         pass

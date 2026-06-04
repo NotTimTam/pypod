@@ -109,13 +109,6 @@ class Jellyfin:
     def get_artists(self):
         """
         Get all music artists from the music library.
-        
-        CRITICAL FIX from original code:
-        - Original used: /Users/{userId}/Items with IncludeItemTypes=MusicArtist (400 Bad Request)
-        - Correct endpoint: /Artists (dedicated artists endpoint)
-        
-        This is the proper way to get artists per Jellyfin API.
-        Reference: Issue #16284 shows /Artists endpoint usage
         """
         params = {
             "Limit": 1000,
@@ -187,106 +180,6 @@ class Jellyfin:
             {"Id": genre.get("Id"), "Name": genre.get("Name")}
             for genre in genres
         ]
-
-    def get_playlists(self):
-        """
-        Get all playlists for the current user.
-        
-        Uses: GET /Users/{userId}/Playlists
-        """
-        user_id = self._get_user_id()
-        params = {
-            "Recursive": "true",
-            "IncludeItemTypes": "Audio",
-            "Fields": "ItemCount,Name,IsLocked,UserId",
-            "Limit": 1000,
-        }
-        playlists = self._request(f"Users/{user_id}/Playlists", params=params)
-        if isinstance(playlists, dict):
-            playlists = playlists.get("Items", [])
-        return [
-            {
-                "Id": playlist.get("Id"),
-                "Name": playlist.get("Name"),
-                "ItemCount": playlist.get("ItemCount", 0),
-                "IsLocked": playlist.get("IsLocked", False),
-            }
-            for playlist in playlists
-        ]
-
-    def get_playlist_items(self, playlist_id):
-        """
-        Get all items in a specific playlist.
-        
-        Uses: GET /Playlists/{playlistId}/Items
-        """
-        params = {
-            "Fields": "Album,AlbumId,Artists,AlbumArtists,Genres,Path,MediaSources",
-            "Limit": 1000,
-        }
-        playlist_items = self._request(f"Playlists/{quote(playlist_id)}/Items", params=params)
-        if isinstance(playlist_items, dict):
-            playlist_items = playlist_items.get("Items", [])
-        return [
-            {
-                "Id": item.get("Id"),
-                "Name": item.get("Name"),
-                "Album": item.get("Album"),
-                "AlbumId": item.get("AlbumId"),
-                "Artists": item.get("Artists", []),
-                "AlbumArtists": item.get("AlbumArtists", []),
-                "Genres": item.get("Genres", []),
-                "Path": item.get("Path"),
-            }
-            for item in playlist_items
-        ]
-
-    def download_playlist(self, playlist_id, download_root=None):
-        """Download all songs in a playlist."""
-        download_root = Path(download_root) if download_root is not None else self.download_root
-        if download_root is None:
-            raise JellyfinError("download_playlist requires a download_root or Jellyfin(download_root=...) to be configured.")
-
-        download_root.mkdir(parents=True, exist_ok=True)
-        playlist_root = download_root / "playlists"
-        playlist_root.mkdir(parents=True, exist_ok=True)
-
-        playlist = self._request(f"Playlists/{quote(playlist_id)}", params={"Fields": "Name,ItemCount"})
-        playlist_name = playlist.get("Name") or playlist_id
-        playlist_items = self.get_playlist_items(playlist_id)
-
-        downloaded_items = []
-        for item in playlist_items:
-            result = self.download_song(item["Id"], download_root=download_root)
-            downloaded_items.append({
-                "Id": item["Id"],
-                "Name": item["Name"],
-                "Artist": result["artist"],
-                "Album": result["album"],
-                "Path": result["path"],
-                "AlbumArt": result["album_art"],
-            })
-
-        playlist_file = playlist_root / f"{self._sanitize_path_component(playlist_name)}.json"
-        with open(playlist_file, "w", encoding="utf-8") as out_file:
-            json.dump(
-                {
-                    "Id": playlist_id,
-                    "Name": playlist_name,
-                    "ItemCount": playlist.get("ItemCount", len(downloaded_items)),
-                    "Items": downloaded_items,
-                },
-                out_file,
-                indent=2,
-                ensure_ascii=False,
-            )
-
-        return {
-            "playlist_id": playlist_id,
-            "name": playlist_name,
-            "playlist_file": str(playlist_file),
-            "items": downloaded_items,
-        }
 
     def get_songs(self, album_id=None, artist_id=None, genre_id=None):
         """
