@@ -73,7 +73,19 @@ class SongScreen(Screen):
                     callback = partial(self._media_player.play_song, song_item)
                     self.menu.add_item(file.stem, callback)
         else:
-            print("not implemented")
+            for artist_folder in self._music_dir.iterdir():
+                if not artist_folder.is_dir():
+                    continue
+                
+                for album_folder in artist_folder.iterdir():
+                    if not album_folder.is_dir():
+                        continue
+             
+                    for file in album_folder.glob("*"):
+                        if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
+                            song_item = self._media_player.create_song_item(file.name, self._album, self._artist)
+                            callback = partial(self._media_player.play_song, song_item)
+                            self.menu.add_item(file.stem + " / " + album_folder.name + " / " + artist_folder.name, callback)
 
     def handle_input(self):
         """Handle input."""
