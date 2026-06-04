@@ -88,6 +88,10 @@ class MediaPlayer:
         self._monitor_thread: Optional[Thread] = None
         self._stop_monitor = False
         
+        # Streaming thread for file I/O
+        self._streaming_thread: Optional[Thread] = None
+        self._stop_streaming = False
+        
         # Initialize persistent ffplay if requested
         if prewarm:
             self._init_ffplay_daemon()
@@ -221,10 +225,15 @@ class MediaPlayer:
         
         try:
             with open(file_path, 'rb') as audio_file:
-                while not self._stop_monitor and self.process:
+                # Stream file in chunks, checking stop flag frequently
+                while not self._stop_streaming:
                     chunk = audio_file.read(chunk_size)
                     if not chunk:
                         break  # EOF reached
+                    
+                    # Check stop flag before writing
+                    if self._stop_streaming:
+                        break
                     
                     try:
                         self.process.stdin.write(chunk)
@@ -247,7 +256,7 @@ class MediaPlayer:
     def _play_file(self, file_path: str):
         """
         Stream audio file to persistent ffplay via stdin (non-blocking).
-        Spawns a background thread to handle I/O.
+        Stops any currently playing stream and spawns a new background thread.
         
         Args:
             file_path: Full path to audio file
@@ -256,21 +265,28 @@ class MediaPlayer:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
         
-        # Ensure ffplay daemon is running
-        if not self.process or self.process.poll() is not None:
-            self._init_ffplay_daemon()
+        # Stop old streaming thread if one is running
+        if self._streaming_thread and self._streaming_thread.is_alive():
+            self._stop_streaming = True
+            self._streaming_thread.join(timeout=0.5)
+        
+        # Restart ffplay to clear any buffered data
+        self._restart_ffplay_daemon()
+        
+        # Reset streaming flag for new stream
+        self._stop_streaming = False
         
         # Start playback status immediately (non-blocking)
         self._set_status(PlayerStatus.PLAYING)
         self._start_monitor()
         
         # Stream file in background thread
-        stream_thread = Thread(
+        self._streaming_thread = Thread(
             target=self._stream_file_to_ffplay,
             args=(file_path,),
             daemon=True
         )
-        stream_thread.start()
+        self._streaming_thread.start()
     
     def play_song(self, song: SongItem):
         """
@@ -383,6 +399,11 @@ class MediaPlayer:
     def stop(self):
         """Stop playback and clear queue"""
         self._stop_monitor_thread()
+        
+        # Stop streaming thread
+        self._stop_streaming = True
+        if self._streaming_thread and self._streaming_thread.is_alive():
+            self._streaming_thread.join(timeout=0.5)
         
         if self.process:
             try:
