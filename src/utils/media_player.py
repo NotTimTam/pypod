@@ -138,16 +138,16 @@ class MediaPlayer:
             self.process = None
     
     def _restart_ffplay_daemon(self):
-        """Restart ffplay daemon if it has crashed"""
-        try:
-            if self.process:
-                self.process.terminate()
-                self.process.wait(timeout=1)
-        except:
-            pass
-        finally:
+        """Restart ffplay daemon (kills old process immediately, starts new one)"""
+        if self.process:
+            try:
+                # Kill immediately without waiting
+                self.process.kill()
+            except:
+                pass
             self.process = None
         
+        # Start new ffplay immediately
         self._init_ffplay_daemon()
         
     def create_song_item(self, song, album, artist):
@@ -268,11 +268,11 @@ class MediaPlayer:
         # Stop old streaming thread if one is running
         if self._streaming_thread and self._streaming_thread.is_alive():
             self._stop_streaming = True
-            self._streaming_thread.join(timeout=0.5)
+            self._streaming_thread.join(timeout=0.1)
         
-        # Ensure ffplay daemon is running (only init if crashed)
-        if not self.process or self.process.poll() is not None:
-            self._init_ffplay_daemon()
+        # Fast restart ffplay to clear stream and prevent audio corruption
+        # (necessary to properly separate audio streams)
+        self._restart_ffplay_daemon()
         
         # Reset streaming flag for new stream
         self._stop_streaming = False
