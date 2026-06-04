@@ -133,6 +133,7 @@ class MediaPlayer:
             if self.process.poll() is not None:
                 # Process ended
                 if self._status == PlayerStatus.PLAYING:
+                    print("playing")
                     self._trigger_callbacks('song_finished')
                     # Auto-play next if available
                     if len(self.queue) > self.current_index + 1:
@@ -195,19 +196,20 @@ class MediaPlayer:
             print(f"Error starting playback: {e}")
             self._set_status(PlayerStatus.STOPPED)
     
-    def play_song(self, song: SongItem, shuffle: bool = False):
+    def play_song(self, song: SongItem):
         """
         Clear queue and play a single song immediately.
         
         Args:
             song: SongItem to play
-            shuffle: Ignored for single song
         """
         self.queue.clear()
         self.queue.append(song)
         self.current_song = song
         self.current_index = 0
-        
+
+        print(song.path)
+
         self._trigger_callbacks('queue_changed')
         self._trigger_callbacks('song_start')
         self._play_file(song.path)
