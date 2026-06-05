@@ -44,6 +44,49 @@ class NowPlayingScreen(Screen):
         """Handle input."""        
         input_handler.handle_button("B", partial(self._request_screen, "home"))
 
+    def _truncate_text(self, text, max_width, draw, font, ellipsis="..."):
+        """
+        Truncate text to fit within max_width, adding ellipsis if needed.
+        
+        Args:
+            text: Text to truncate
+            max_width: Maximum width in pixels
+            draw: PIL ImageDraw object
+            font: PIL ImageFont
+            ellipsis: String to append if truncated
+            
+        Returns:
+            Truncated text that fits within max_width
+        """
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        
+        if text_width <= max_width:
+            return text
+        
+        # Calculate how much space ellipsis takes
+        ellipsis_bbox = draw.textbbox((0, 0), ellipsis, font=font)
+        ellipsis_width = ellipsis_bbox[2] - ellipsis_bbox[0]
+        available_width = max_width - ellipsis_width
+        
+        # Binary search for the longest text that fits
+        left, right = 0, len(text)
+        best_length = 0
+        
+        while left <= right:
+            mid = (left + right) // 2
+            test_text = text[:mid]
+            test_bbox = draw.textbbox((0, 0), test_text, font=font)
+            test_width = test_bbox[2] - test_bbox[0]
+            
+            if test_width <= available_width:
+                best_length = mid
+                left = mid + 1
+            else:
+                right = mid - 1
+        
+        return text[:best_length] + ellipsis
+
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
         if not self._media_player.current_song:
