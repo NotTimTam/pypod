@@ -100,8 +100,19 @@ class MediaPlayer:
         }
         
         # Start persistent ffplay and streaming thread
+        self._kill_existing_ffplay()
         self._init_ffplay_daemon()
         self._start_stream_thread()
+
+    def _kill_existing_ffplay(self):
+        try:
+            subprocess.run(
+                ["pkill", "-9", "ffplay"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception:
+            pass
     
     def _check_ffplay_available(self):
         if shutil.which("ffplay") is None:
@@ -662,8 +673,7 @@ class MediaPlayer:
     def __del__(self):
         """Cleanup"""
         try:
-            self.stop()
-            self._stop_streaming = True
+            self.cleanup()
         except:
             pass
 
