@@ -133,3 +133,5 @@ class NowPlayingScreen(Screen):
             # Draw the (possibly scrolled) text
             draw.text((self.padding_left, y), item_text, fill=(255, 255, 255), font=font)
             y += line_height
+
+        self.controls.render(img, draw)
