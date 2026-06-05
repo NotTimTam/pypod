@@ -171,7 +171,7 @@ try:
 
         # Render screen
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
-        if (media_player.get_status() != PlayerStatus.STOPPED): now_playing_widget.render(img, draw, font)
+        if (media_player.get_status() != PlayerStatus.STOPPED and current_screen_name != "now_playing"): now_playing_widget.render(img, draw, font)
 
         disp.display(img)
 
