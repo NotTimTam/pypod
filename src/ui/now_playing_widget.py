@@ -55,7 +55,7 @@ class NowPlayingWidget():
         if (not self._media_player.current_song) or (self._media_player.get_status() == PlayerStatus.STOPPED):
             return None
 
-        text_max_width = SCREEN_SIZE - self.padding_left - self.padding_right
+        text_max_width = SCREEN_SIZE
         bbox = draw.textbbox((0, 0), "A", font=font)
         line_height = bbox[3] - bbox[1]
 
@@ -83,7 +83,7 @@ class NowPlayingWidget():
             self.title_offset = 0
 
         # Draw the (possibly scrolled) text
-        draw.line((0, SCREEN_SIZE - line_height - 4, SCREEN_SIZE, line_height + self.padding * 2), fill=(255, 255, 255), width=1)
+        draw.line((0, SCREEN_SIZE - line_height - 4, SCREEN_SIZE,  SCREEN_SIZE - line_height - 4), fill=(255, 255, 255), width=1)
         draw.text((0, SCREEN_SIZE - line_height - 2), display, fill=(255, 255, 255), font=font)
 
         self.controls.render(img, draw)
