@@ -16,7 +16,7 @@ class NowPlayingWidget():
         # Toggle between now playing and "Hold A" message
         self.last_switch_time = 0
         self.switch_interval = 10.0          # 10 seconds
-        self.show_details_prompt = False
+        self.show_details_prompt = True
 
     def _truncate_text(self, text, max_width, draw, font):
         """
