@@ -5,8 +5,10 @@ from pathlib import Path
 
 from src.utils.screen import Screen
 from src.utils.input import input_handler
+from src.utils.constants import SCREEN_SIZE
 
 from src.ui.control_icons import ControlIcons
+
 
 class NowPlayingScreen(Screen):
     """Now playing screen with navigation menu."""
@@ -102,13 +104,9 @@ class NowPlayingScreen(Screen):
             self._media_player.current_song.artist or ""
         ]
 
-        y = self.padding_top
+        y = self.padding_top + SCREEN_SIZE / 3
 
         for i, item_text in enumerate(texts):
-            if not item_text:
-                y += line_height
-                continue
-
             full_text_width = draw.textbbox((0, 0), item_text, font=font)[2]
 
             # Only do marquee if text is too wide
@@ -132,6 +130,6 @@ class NowPlayingScreen(Screen):
 
             # Draw the (possibly scrolled) text
             draw.text((self.padding_left, y), item_text, fill=(255, 255, 255), font=font)
-            y += line_height
+            y += line_height + 2
 
         self.controls.render(img, draw)
