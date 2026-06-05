@@ -666,3 +666,49 @@ class MediaPlayer:
             self._stop_streaming = True
         except:
             pass
+
+    def cleanup(self):
+        """Fully shut down media player and all background resources."""
+
+        print("[MediaPlayer] cleanup")
+
+        # Stop monitor thread
+        self._stop_monitor = True
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            self._monitor_thread.join(timeout=1)
+
+        # Stop streaming thread
+        self._stop_streaming = True
+        self._buffer_has_data.set()  # wake thread if waiting
+
+        if self._stream_thread and self._stream_thread.is_alive():
+            self._stream_thread.join(timeout=1)
+
+        # Clear buffered audio
+        with self._buffer_lock:
+            self._stream_buffer.clear()
+
+        # Shutdown ffplay process
+        if self.process:
+            try:
+                if self.process.stdin:
+                    self.process.stdin.close()
+            except Exception:
+                pass
+
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=2)
+            except Exception:
+                try:
+                    self.process.kill()
+                    self.process.wait(timeout=1)
+                except Exception:
+                    pass
+
+            self.process = None
+
+        self.queue.clear()
+        self.current_song = None
+        self.current_index = -1
+        self._status = PlayerStatus.STOPPED

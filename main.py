@@ -65,7 +65,9 @@ WIDTH = disp.width
 HEIGHT = disp.height
 
 def cleanup():
-    """Clear display and turn off backlight."""
+    """Cleanup application on exit."""
+    media_player.cleanup()
+    
     blank = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
     disp.display(blank)
     disp.set_backlight(0)
