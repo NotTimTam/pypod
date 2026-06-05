@@ -83,5 +83,5 @@ class NowPlayingWidget():
             self.title_offset = 0
 
         # Draw the (possibly scrolled) text
-        draw.line((0, SCREEN_SIZE - line_height - 4, SCREEN_SIZE,  SCREEN_SIZE - line_height - 4), fill=(255, 255, 255), width=1)
-        draw.text((0, SCREEN_SIZE - line_height - 2), display, fill=(255, 255, 255), font=font)
+        draw.line((0, SCREEN_SIZE - line_height - 6, SCREEN_SIZE,  SCREEN_SIZE - line_height - 6), fill=(255, 255, 255), width=1)
+        draw.text((0, SCREEN_SIZE - line_height - 4), display, fill=(255, 255, 255), font=font)
