@@ -77,7 +77,7 @@ class NowPlayingWidget():
             visible_text = scroll_text[start : start + len(display) + len(gap)]
 
             # Truncate to fit
-            display = self._truncate_text(visible_text, text_max_width, draw, font, ellipsis="")
+            display = self._truncate_text(visible_text, text_max_width, draw, font)
         else:
             # Optional: reset offset when text becomes short again
             self.title_offset = 0
