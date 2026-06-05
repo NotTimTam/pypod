@@ -144,6 +144,7 @@ current_screen = load_screen(current_screen_name, {})
 # Handle open "now playing" menu.
 def on_a_long_press():
     """Called when A button is held"""
+    print(media_player.get_status())
     if (media_player.get_status() != "stopped"):
         request_screen("now_playing")
 
