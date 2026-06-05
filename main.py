@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-
 from dotenv import load_dotenv
-
 import os
 import sys
 import st7789
 import signal
 import traceback
-
+import time
 from PIL import Image, ImageDraw, ImageFont
-
 from src.ui.now_playing_widget import NowPlayingWidget
-
 from src.utils.constants import SCREEN_SIZE
 from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
@@ -20,16 +16,13 @@ from src.utils.media_player import MediaPlayer, PlayerStatus
 from src.utils.input import input_handler
 
 #########################################
-
 # Load environment
 load_dotenv()
 LIBRARY = os.getenv("LIBRARY")
-
 if not LIBRARY:
     raise ValueError("No LIBRARY env variable defined")
 
 JELLYFIN_URL = os.getenv("JELLYFIN_URL")
-
 if JELLYFIN_URL:
     JELLYFIN_LIBRARY  = os.getenv("JELLYFIN_LIBRARY")
     JELLYFIN_USERNAME = os.getenv("JELLYFIN_USERNAME")
@@ -52,7 +45,7 @@ disp = st7789.ST7789(
     height= SCREEN_SIZE,
     rotation= 90,
     port=0,
-    cs=st7789.BG_SPI_CS_FRONT,  # BG_SPI_CS_BACK or BG_SPI_CS_FRONT
+    cs=st7789.BG_SPI_CS_FRONT,
     dc=9,
     backlight=13,  
     spi_speed_hz=80 * 1000 * 1000,
@@ -62,14 +55,27 @@ disp = st7789.ST7789(
 
 # Initialize display.
 disp.begin()
-
 WIDTH = disp.width
 HEIGHT = disp.height
+
+# Sleep mode configuration
+INACTIVITY_TIMEOUT = 15  # seconds - change this as needed
+last_activity_time = time.time()
+is_sleeping = False
+
+def update_activity():
+    """Update last activity time and wake from sleep if necessary."""
+    global last_activity_time, is_sleeping
+    last_activity_time = time.time()
+    if is_sleeping:
+        is_sleeping = False
+        disp.set_backlight(1)  # Turn backlight back on
+        input_handler.clear_events()
 
 def cleanup():
     """Cleanup application on exit."""
     media_player.cleanup()
-    
+   
     blank = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
     disp.display(blank)
     disp.set_backlight(0)
@@ -85,7 +91,7 @@ requested_screen="home"
 requested_state = None
 
 def request_screen(name, state=None):
-    global requested_screen 
+    global requested_screen
     global requested_state
     requested_screen = name
     requested_state = state
@@ -130,12 +136,9 @@ def load_screen(name, state=None):
 
 img = Image.new("RGB", (WIDTH, HEIGHT), color=(0, 0, 0))
 draw = ImageDraw.Draw(img)
-
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-
 bbox = draw.textbbox((0, 0), "A", font=font)
 size_y = bbox[3] - bbox[1]
-
 text_x = int(0)
 text_y = int(disp.height - size_y - 4)
 
@@ -148,33 +151,60 @@ def on_a_long_press():
     """Called when A button is held"""
     if (media_player.get_status() != PlayerStatus.STOPPED):
         request_screen("now_playing")
+        update_activity()  # Treat long press as activity
 
 input_handler.register_long_press('A', on_a_long_press, duration=1.5)
 
 now_playing_widget = NowPlayingWidget(media_player)
 
+# Register activity callback for button presses
+def on_any_button_press(label):
+    update_activity()
+
+input_handler.register_activity_callback(on_any_button_press)
+
 try:
     while True:
+        current_time = time.time()
+        
+        # Check for inactivity
+        if not is_sleeping and current_time - last_activity_time > INACTIVITY_TIMEOUT:
+            is_sleeping = True
+            disp.set_backlight(0)  # Turn off backlight
+        
+        if is_sleeping:    
+            # Wake up on any button press or release
+            if input_handler.has_events() or any(input_handler.button_state(btn) for btn in ['A','B','X','Y']):
+                update_activity()
+                continue
+            
+            time.sleep(0.1)
+            continue
+        
+        # === Normal operation ===
         if (current_screen_name != "now_playing"):
             input_handler.check_long_presses()
-
+        
         if (requested_screen):
             current_screen_name = requested_screen
             current_screen = load_screen(current_screen_name, requested_state)
             requested_state = None
             requested_screen = None
-
+            update_activity()
+        
         # Clear display
         draw.rectangle((0, 0, disp.width, disp.height), (0, 0, 0))
-
         current_screen.handle_input()
-
+        
         # Render screen
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
-        if (media_player.get_status() != PlayerStatus.STOPPED and current_screen_name != "now_playing"): now_playing_widget.render(img, draw, font)
-
+        if (media_player.get_status() != PlayerStatus.STOPPED and current_screen_name != "now_playing"): 
+            now_playing_widget.render(img, draw, font)
+        
         disp.display(img)
-
+        
+        # Small sleep to avoid high CPU
+        time.sleep(0.05)
 
 except Exception as e:
     traceback.print_exc(file=sys.stderr)
