@@ -42,6 +42,11 @@ class NowPlayingScreen(Screen):
         """Render the screen with menu centered."""
         if (not self._media_player.current_song): return None
 
+        bbox = draw.textbbox((0, 0), "A", font=font)
+        line_height = bbox[3] - bbox[1]
+
         draw.text((self.padding_left, self.padding_top), self._media_player.current_song.name, fill=(255, 255, 255), font=font)
+        draw.text((self.padding_left, self.padding_top + line_height), self._media_player.current_song.album, fill=(255, 255, 255), font=font)
+        draw.text((self.padding_left, self.padding_top + line_height * 2), self._media_player.current_song.artist, fill=(255, 255, 255), font=font)
 
         self.controls.render(img, draw)
