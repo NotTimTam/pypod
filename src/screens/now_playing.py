@@ -97,7 +97,7 @@ class NowPlayingScreen(Screen):
         line_height = bbox[3] - bbox[1]
 
         texts = [
-            self._media_player.current_song.name or "",
+            Path(self._media_player.current_song.name).stem,
             self._media_player.current_song.album or "",
             self._media_player.current_song.artist or ""
         ]
