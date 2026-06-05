@@ -40,11 +40,8 @@ class NowPlayingScreen(Screen):
 
     def render(self, img, draw, font, width, height):
         """Render the screen with menu centered."""
-        content_width = width - self.padding_left - self.padding_right
-        content_height = height - self.padding_top - self.padding_bottom
-        # menu_width = content_width - 8
-        # menu_height = content_height
-        # menu_x = self.padding_left + 4
-        # menu_y = self.padding_top + header_height
+        if (not self._media_player.current_song): return None
+
+        draw.text((self.padding_left, self.padding_top), self._media_player.current_song.name, fill=(255, 255, 255), font=font)
 
         self.controls.render(img, draw)
