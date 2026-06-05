@@ -141,12 +141,13 @@ text_y = int(disp.height - size_y - 4)
 current_screen_name = "home"
 current_screen = load_screen(current_screen_name, {})
 
+# Handle open "now playing" menu.
 def on_a_long_press():
-    """Called when A button is held for 2+ seconds"""
-    request_screen("now_playing")
- 
-input_handler.register_long_press('A', on_a_long_press, duration=2.0)
+    """Called when A button is held"""
+    if (media_player.get_status() != "stopped"):
+        request_screen("now_playing")
 
+input_handler.register_long_press('A', on_a_long_press, duration=1.5)
 
 try:
     while True:

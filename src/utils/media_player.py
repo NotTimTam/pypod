@@ -3,13 +3,11 @@ import time
 import os
 import random
 import shutil
-from pathlib import Path
 from typing import List, Optional, Callable, Dict
 from enum import Enum
 from dataclasses import dataclass
 from collections import deque
 from threading import Thread, Lock, Event
-import threading
 
 class PlayerStatus(Enum):
     """Player status enumeration"""
