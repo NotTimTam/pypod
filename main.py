@@ -14,7 +14,7 @@ from src.utils.constants import SCREEN_SIZE
 from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
 from src.utils.download_manager import DownloadManager
-from src.utils.media_player import MediaPlayer
+from src.utils.media_player import MediaPlayer, PlayerStatus
 from src.utils.input import input_handler
 
 #########################################
@@ -144,8 +144,7 @@ current_screen = load_screen(current_screen_name, {})
 # Handle open "now playing" menu.
 def on_a_long_press():
     """Called when A button is held"""
-    print(media_player.get_status())
-    if (media_player.get_status() != "stopped"):
+    if (media_player.get_status() != PlayerStatus.STOPPED):
         request_screen("now_playing")
 
 input_handler.register_long_press('A', on_a_long_press, duration=1.5)
