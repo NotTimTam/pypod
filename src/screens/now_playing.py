@@ -92,7 +92,7 @@ class NowPlayingScreen(Screen):
         if not self._media_player.current_song:
             return None
 
-        text_max_width = width - 8
+        text_max_width = width - self.padding_left - self.padding_right
         bbox = draw.textbbox((0, 0), "A", font=font)
         line_height = bbox[3] - bbox[1]
 
