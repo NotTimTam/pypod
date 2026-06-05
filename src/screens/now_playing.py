@@ -1,3 +1,5 @@
+import time
+
 from functools import partial
 from pathlib import Path
 
@@ -42,11 +44,39 @@ class NowPlayingScreen(Screen):
         """Render the screen with menu centered."""
         if (not self._media_player.current_song): return None
 
+        text_max_width = width - 8
         bbox = draw.textbbox((0, 0), "A", font=font)
         line_height = bbox[3] - bbox[1]
 
-        draw.text((self.padding_left, self.padding_top), self._media_player.current_song.name, fill=(255, 255, 255), font=font)
-        draw.text((self.padding_left, self.padding_top + line_height), self._media_player.current_song.album, fill=(255, 255, 255), font=font)
-        draw.text((self.padding_left, self.padding_top + line_height * 2), self._media_player.current_song.artist, fill=(255, 255, 255), font=font)
+        texts = [
+                self._media_player.current_song.name,
+                self._media_player.current_song.album or "",
+                self._media_player.current_song.artist or ""
+            ]
+
+        y = self.padding_top
+
+        for item_text in texts:
+            # Marquee logic for each line
+            full_text_width = draw.textbbox((0, 0), item_text, font=font)[2]
+
+            if full_text_width > text_max_width:
+                current_time = time.time()
+                if current_time - self.last_title_shift_time > self.title_shift_interval:
+                    self.title_offset = (self.title_offset + 1) % (len(item_text) + 10)
+                    self.last_title_shift_time = current_time
+
+                # Seamless scrolling
+                gap = " " * 6
+                scroll_text = item_text + gap + item_text
+                start = self.title_offset % len(scroll_text)
+                visible_text = scroll_text[start : start + len(item_text) + len(gap)]
+                
+                # Truncate to fit
+                item_text = self._truncate_text(visible_text, text_max_width, draw, font, ellipsis="")
+            
+            # Draw the (possibly scrolled) text
+            draw.text((self.padding_left, y), item_text, fill=(255, 255, 255), font=font)
+            y += line_height
 
         self.controls.render(img, draw)
