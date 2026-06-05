@@ -10,6 +10,8 @@ import traceback
 
 from PIL import Image, ImageDraw, ImageFont
 
+from src.ui.now_playing_widget import NowPlayingWidget
+
 from src.utils.constants import SCREEN_SIZE
 from src.utils.device import start_device_thread
 from src.utils.jellyfin import Jellyfin
@@ -149,6 +151,8 @@ def on_a_long_press():
 
 input_handler.register_long_press('A', on_a_long_press, duration=1.5)
 
+now_playing_widget = NowPlayingWidget(media_player)
+
 try:
     while True:
         if (current_screen_name != "now_playing"):
@@ -167,8 +171,10 @@ try:
 
         # Render screen
         current_screen.render(img, draw, font, WIDTH, HEIGHT)
+        if (media_player.get_status() != PlayerStatus.STOPPED): now_playing_widget.render(img, draw, font)
 
         disp.display(img)
+
 
 except Exception as e:
     traceback.print_exc(file=sys.stderr)
