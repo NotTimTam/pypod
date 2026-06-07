@@ -4,7 +4,6 @@ from pathlib import Path
 from src.utils.screen import Screen
 from src.utils.input import input_handler
 from src.utils.constants import AUDIO_EXTENSIONS
-from src.utils.media_player import SongItem
 
 from src.ui.menu import Menu
 from src.ui.header import Header
