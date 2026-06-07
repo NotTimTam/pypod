@@ -56,15 +56,18 @@ class SongScreen(Screen):
         )
         self._setup_menu()
 
-    def nullish(self):
-        print(".")
-
     def _setup_menu(self):
         """Define menu items and their callbacks."""
 
         if self._artist and self._album:
-            self.menu.add_item("Play All", self.nullish)
-            self.menu.add_item("Queue All", self.nullish)
+            self.menu.add_item(
+                "Play All",
+                partial(self._media_player.play_album, self._artist, self._album),
+            )
+            self.menu.add_item(
+                "Queue All",
+                partial(self._media_player.queue_album, self._artist, self._album),
+            )
             album_folder = self._music_dir / self._artist / self._album
 
             for file in album_folder.glob("*"):
