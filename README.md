@@ -41,3 +41,10 @@ Faster
 
 
 ### Date and Time >
+
+
+# Other Todo
+- Jellyfin integration song download screen doesn't update download status for songs after you click download.
+    - It also doesn't show which song is being downloaded when the whole album is downloaded. Which means the download counter goes 0-100% several times, which could confuse the user.
+- Add playlists feature
+- Add settings feature

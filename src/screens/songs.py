@@ -72,7 +72,6 @@ class SongScreen(Screen):
 
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                    print("IMPLEMENT QUEUE/PLAY DIALOGUE")
                     song_item = self._media_player.create_song_item(
                         file.name, self._album, self._artist
                     )
