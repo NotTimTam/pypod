@@ -238,7 +238,7 @@ now_playing_widget = NowPlayingWidget(media_player)
 
 
 # Register activity callback for button presses
-def on_any_button_press():
+def on_any_button_press(_):
     update_activity()
 
 
