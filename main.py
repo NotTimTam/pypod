@@ -249,7 +249,7 @@ try:
         current_time = time.time()
 
         # Check for inactivity
-        if not is_sleeping and current_time - last_activity_time > INACTIVITY_TIMEOUT:
+        if not is_sleeping and current_time - last_activity_time > INACTIVITY_TIMEOUT and current_screen_name != "jellyfin_songs":
             is_sleeping = True
             disp.set_backlight(0)  # Turn off backlight
 
