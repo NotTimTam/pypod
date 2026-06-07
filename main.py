@@ -115,7 +115,7 @@ def load_screen(name, state=None):
     if name == "home":
         from src.screens.home import HomeScreen as _HomeScreen
 
-        return _HomeScreen(state=state, request_screen=request_screen, jellyfin=True)
+        return _HomeScreen(state=state, request_screen=request_screen, jellyfin=True if jellyfin else False)
     elif name == "music":
         from src.screens.music import MusicScreen as _MusicScreen
 
@@ -238,7 +238,7 @@ now_playing_widget = NowPlayingWidget(media_player)
 
 
 # Register activity callback for button presses
-def on_any_button_press(label):
+def on_any_button_press():
     update_activity()
 
 
