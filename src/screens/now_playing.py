@@ -36,9 +36,6 @@ class NowPlayingScreen(Screen):
         })
         self._setup_screen()
 
-    def nullish(self):
-        print(".")
-
     def _setup_screen(self):
         """Define screen items and their callbacks."""
 
@@ -104,7 +101,7 @@ class NowPlayingScreen(Screen):
             self._media_player.current_song.artist or ""
         ]
 
-        y = self.padding_top + SCREEN_SIZE / 3
+        y = self.padding_top
 
         for i, item_text in enumerate(texts):
             full_text_width = draw.textbbox((0, 0), item_text, font=font)[2]
