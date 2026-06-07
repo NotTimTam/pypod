@@ -10,15 +10,15 @@ from src.ui.menu import Menu
 from src.ui.header import Header
 from src.ui.control_icons import ControlIcons
 
+
 class SongScreen(Screen):
     """Songs screen with navigation menu."""
 
-    def __init__(self, state=None, request_screen=None, music_dir=None, media_player=None):
+    def __init__(
+        self, state=None, request_screen=None, music_dir=None, media_player=None
+    ):
         super().__init__(
-            padding_top=12,
-            padding_bottom=12,
-            padding_left=32,
-            padding_right=32
+            padding_top=12, padding_bottom=12, padding_left=32, padding_right=32
         )
         self._request_screen = request_screen
         self._music_dir = Path(music_dir) if music_dir is not None else None
@@ -39,20 +39,22 @@ class SongScreen(Screen):
             self._return_index = state.get("return_index", 0)
             self._return_screen = state.get("return_screen")
             self._from_artist = state.get("from_artist", False)
-            self._artist = state.get('artist')
-            self._album = state.get('album')
+            self._artist = state.get("artist")
+            self._album = state.get("album")
 
         menu_state = state.get("menu", {}) if state else {}
         album_title = self._album if self._album else "SONGS"
         self.header = Header(title=album_title)
-        
+
         self.menu = Menu(state=menu_state)
-        self.controls = ControlIcons(icons={
-            "x": "chevron-up.png",
-            "y": "chevron-down.png",
-            "a": "chevron-right.png",
-            "b": "chevron-left.png",
-        })
+        self.controls = ControlIcons(
+            icons={
+                "x": "chevron-up.png",
+                "y": "chevron-down.png",
+                "a": "chevron-right.png",
+                "b": "chevron-left.png",
+            }
+        )
         self._setup_menu()
 
     def nullish(self):
@@ -60,51 +62,72 @@ class SongScreen(Screen):
 
     def _setup_menu(self):
         """Define menu items and their callbacks."""
-        self.menu.add_item("Play All", self.nullish)
-        self.menu.add_item("Queue All", self.nullish)
 
         if self._artist and self._album:
+            self.menu.add_item("Play All", self.nullish)
+            self.menu.add_item("Queue All", self.nullish)
             album_folder = self._music_dir / self._artist / self._album
 
             for file in album_folder.glob("*"):
                 if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
                     print("IMPLEMENT QUEUE/PLAY DIALOGUE")
-                    song_item = self._media_player.create_song_item(file.name, self._album, self._artist)
+                    song_item = self._media_player.create_song_item(
+                        file.name, self._album, self._artist
+                    )
                     callback = partial(self._media_player.play_song, song_item)
                     self.menu.add_item(file.stem, callback)
         else:
+            self.menu.add_item("Play All", self._media_player.play_all_songs)
+            self.menu.add_item("Queue All", self._media_player.queue_all_songs)
             for artist_folder in self._music_dir.iterdir():
                 if not artist_folder.is_dir():
                     continue
-                
+
                 for album_folder in artist_folder.iterdir():
                     if not album_folder.is_dir():
                         continue
-             
+
                     for file in album_folder.glob("*"):
                         if file.is_file() and file.suffix.lower() in AUDIO_EXTENSIONS:
-                            song_item = self._media_player.create_song_item(file.name, album_folder.name, artist_folder.name)
+                            song_item = self._media_player.create_song_item(
+                                file.name, album_folder.name, artist_folder.name
+                            )
                             callback = partial(self._media_player.play_song, song_item)
-                            self.menu.add_item(file.stem + " / " + album_folder.name + " / " + artist_folder.name, callback)
+                            self.menu.add_item(
+                                file.stem
+                                + " / "
+                                + album_folder.name
+                                + " / "
+                                + artist_folder.name,
+                                callback,
+                            )
 
     def handle_input(self):
         """Handle input."""
         self.menu.handle_input()
-        
+
         # FIX: Pass complete state needed for the return screen
         def go_back():
             return_state = {
-                "menu": {"current_index": self._album_index if self._return_screen == "albums" else self._return_index},
+                "menu": {
+                    "current_index": self._album_index
+                    if self._return_screen == "albums"
+                    else self._return_index
+                },
             }
-            
+
             # If returning to albums, pass context about how we got there
             if self._return_screen == "albums":
-                return_state["artist"] = self._artist  # Always include artist name (or None)
+                return_state["artist"] = (
+                    self._artist
+                )  # Always include artist name (or None)
                 return_state["artist_index"] = self._artist_index
-                return_state["from_artist"] = self._from_artist  # Critical: tells albums if header should show artist or "ALBUMS"
-            
+                return_state["from_artist"] = (
+                    self._from_artist
+                )  # Critical: tells albums if header should show artist or "ALBUMS"
+
             self._request_screen(self._return_screen, return_state)
-        
+
         input_handler.handle_button("B", go_back)
 
     def render(self, img, draw, font, width, height):
@@ -124,9 +147,7 @@ class SongScreen(Screen):
 
     def get_state(self):
         """Return screen state for persistence."""
-        return {
-            "menu": self.menu.get_state()
-        }
+        return {"menu": self.menu.get_state()}
 
     def set_state(self, state):
         """Restore screen state from dict."""
